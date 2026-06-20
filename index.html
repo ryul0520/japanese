@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>JAPANESE MASTER</title>
+    <meta name="theme-color" content="#FF5C8D">
+    <style>
+        :root {
+            --primary: #FF5C8D; 
+            --bg: #F8FAFC;
+            --card-dark: #1E293B;
+            --star-color: #FAC827;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        html, body {
+            margin: 0; padding: 0; background-color: var(--bg);
+            font-family: -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif;
+            height: 100vh; height: 100dvh; overflow: hidden;
+            user-select: none; -webkit-user-select: none;
+            touch-action: none;
+            overscroll-behavior: none; 
+        }
+
+        #intro-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--primary); z-index: 10000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: white; transition: opacity 0.4s ease-out, visibility 0.4s;
+        }
+        #intro-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+        .page { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; z-index: 10; background: var(--bg); }
+        .page.active { display: flex; }
+
+        .header {
+            padding: 12px 20px; background: white; display: flex; 
+            justify-content: space-between; align-items: center; 
+            border-bottom: 1px solid #e2e8f0; font-weight: 800;
+        }
+
+        .lobby-content { 
+            flex: 1; overflow-y: auto; padding: 20px; max-width: 900px; margin: 0 auto; width: 100%; 
+            touch-action: pan-y;
+        }
+        
+        .tool-btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .tool-btn {
+            background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 16px 10px; font-weight: 800; font-size: 0.95rem; color: #334155;
+            cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px;
+        }
+        .tool-btn:active { background: #f1f5f9; transform: scale(0.98); }
+        .tool-btn.highlight { border-color: var(--primary); color: var(--primary); background: #FFF0F5; }
+        .tool-btn.full-width { grid-column: span 2; font-size: 1.1rem; padding: 18px 10px; }
+        .tool-btn.continue { background: #10B981; color: white; border: none; display: none; } 
+
+        .session-config {
+            background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px;
+            border: 1px solid #e2e8f0; text-align: center;
+        }
+        .session-config input[type="range"] {
+            width: 100%; margin: 15px 0 10px 0; accent-color: var(--primary);
+        }
+        .learning-mode-btns {
+            display: flex; gap: 10px; margin-top: 10px;
+        }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 2000;
+            display: none; justify-content: center; align-items: center;
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .modal-overlay.visible { display: flex; opacity: 1; }
+        .modal-box {
+            background: white; width: 95%; max-width: 600px; height: 85%;
+            border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+            transform: scale(0.9); transition: transform 0.3s;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .modal-overlay.visible .modal-box { transform: scale(1); }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 20px; border-bottom: 1px solid #eee; background: white;
+        }
+        .modal-header h3 { margin: 0; font-size: 1.1rem; }
+        .modal-header button { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #888; }
+        .modal-content {
+            flex: 1; overflow-y: auto; padding: 15px 20px;
+            touch-action: pan-y; -webkit-user-select: text; user-select: text;
+        }
+
+        /* 새로운 메모 입력창 (Rich Text Editor) 스타일 */
+        .rich-editor {
+            width: 100%; min-height: 200px; padding: 10px; border-radius: 8px;
+            border: 1px solid #ccc; font-family: sans-serif; font-size: 14px;
+            overflow-y: auto; margin-bottom: 10px; outline: none; line-height: 1.5;
+            background: white;
+        }
+        .rich-editor:focus { border-color: var(--primary); }
+        .rich-editor:empty:before { content: attr(placeholder); color: #aaa; pointer-events: none; display: block; }
+        
+        /* 이미지 리사이징 래퍼 */
+        .img-wrapper {
+            display: inline-block;
+            resize: both;
+            overflow: hidden;
+            border: 2px dashed #cbd5e1;
+            padding: 2px;
+            max-width: 100%;
+            vertical-align: middle;
+            margin: 5px 0;
+        }
+        .img-wrapper:hover, .img-wrapper:focus-within { border-color: var(--primary); }
+        .img-wrapper img {
+            width: 100%; height: 100%;
+            object-fit: contain; pointer-events: none;
+            display: block;
+        }
+
+        .edit-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+        .edit-row input { 
+            flex: 1; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; 
+            font-size: 0.95rem; outline: none; min-width: 0;
+        }
+        .edit-row input:focus { border-color: var(--primary); }
+        .delete-btn { 
+            background: #FEE2E2; color: #DC2626; border: none; padding: 10px; 
+            border-radius: 8px; cursor: pointer; font-weight: bold; flex-shrink: 0;
+        }
+        
+        /* 모달 안 즐겨찾기 버튼 */
+        .list-star-btn {
+            background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 0 5px;
+            flex-shrink: 0; transition: transform 0.1s;
+        }
+        .list-star-btn:active { transform: scale(1.2); }
+
+        .overlay-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 3000;
+            display: none; justify-content: center; align-items: center;
+        }
+        .overlay-modal.visible { display: flex; }
+        .modal-card {
+            background: white; width: 85%; max-width: 380px;
+            border-radius: 24px; padding: 36px 28px; text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-card .emoji { font-size: 4rem; margin-bottom: 12px; }
+        .modal-card h2 { margin: 0 0 8px; font-size: 1.6rem; color: #1e293b; }
+        .modal-card p { color: #64748b; font-size: 0.95rem; margin: 0 0 24px; }
+        .modal-action-btn {
+            width: 100%; padding: 14px; border-radius: 14px; border: none;
+            font-size: 1rem; font-weight: 800; cursor: pointer; margin-bottom: 10px;
+        }
+        .modal-action-btn.primary { background: var(--primary); color: white; }
+        .modal-action-btn.secondary { background: #f1f5f9; color: #334155; }
+        .modal-action-btn.danger { background: #FEE2E2; color: #DC2626; }
+        .modal-action-btn.success { background: #10B981; color: white; }
+
+        /* 게임 영역 */
+        #game-page { touch-action: none; }
+        .game-container { 
+            flex: 1; display: flex; flex-direction: column; justify-content: center; 
+            align-items: center; perspective: 1200px; padding-bottom: 80px; position: relative; 
+            overflow: hidden;
+        }
+        #bg-overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            z-index: 1; pointer-events: none; opacity: 0; display: flex; justify-content: center; align-items: center;
+            transition: opacity 0.15s;
+        }
+        #bg-icon { font-size: 15rem; font-weight: 900; opacity: 0.35; color: white; transform: scale(0.5); transition: transform 0.15s; }
+        .progress-bar-wrap { position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: #e2e8f0; z-index: 10; }
+        .progress-bar-fill { height: 100%; background: var(--primary); transition: width 0.3s ease; border-radius: 0 2px 2px 0; }
+
+        .card-wrapper { 
+            width: 85%; max-width: 360px; height: 50vh; max-height: 450px; 
+            transform-style: preserve-3d; z-index: 5; touch-action: none;
+        }
+        .card-inner { width: 100%; height: 100%; position: relative; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }
+        .card-inner.flipped { transform: rotateY(180deg); }
+        .card-face { 
+            position: absolute; width: 100%; height: 100%; backface-visibility: hidden; 
+            border-radius: 24px; display: flex; flex-direction: column; align-items: center; 
+            justify-content: center; padding: 25px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        .card-front { background: white; color: #1E293B; }
+        .card-back { background: var(--card-dark); color: white; transform: rotateY(180deg); }
+        
+        .word { font-size: 2.5rem; font-weight: 800; margin-bottom: 8px; word-break: keep-all; font-family: "Meiryo", sans-serif; }
+        .meaning { font-size: 1.8rem; font-weight: 700; color: var(--star-color); }
+        .star-toggle { position: absolute; top: 20px; right: 20px; font-size: 2.2rem; color: #E2E8F0; z-index: 100; padding: 10px; cursor: pointer; }
+        .star-toggle.active { color: var(--star-color); }
+
+        .swipe-hint { position: absolute; bottom: 100px; display: flex; gap: 30px; z-index: 10; pointer-events: none; }
+        .hint-pill {
+            display: flex; align-items: center; gap: 6px; background: white; border-radius: 20px; padding: 6px 14px;
+            font-size: 0.8rem; font-weight: 700; color: #94a3b8; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .hint-pill.ok { color: #8BC34A; }
+        .hint-pill.no { color: #EF5350; }
+
+        .nav-bar { 
+            position: absolute; bottom: 30px; width: 100%; max-width: 400px;
+            display: flex; justify-content: space-between; padding: 0 30px;
+        }
+        .nav-btn {
+            background: white; border: 2px solid #e2e8f0; color: #64748b;
+            padding: 12px 20px; border-radius: 30px; font-weight: 800; font-size: 0.9rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer; transition: transform 0.1s;
+        }
+        .nav-btn.ok { border-color: #8BC34A; color: #8BC34A; }
+        .nav-btn.no { border-color: #EF5350; color: #EF5350; }
+        .nav-btn:active { transform: scale(0.95); }
+        .nav-btn.ok:active { background: #8BC34A; color: white; }
+        .nav-btn.no:active { background: #EF5350; color: white; }
+        
+        textarea#add-word-input {
+            width: 100%; height: 150px; padding: 10px; border-radius: 8px;
+            border: 1px solid #ccc; font-family: sans-serif; font-size: 14px;
+            resize: vertical; margin-bottom: 10px; outline: none; line-height: 1.5;
+        }
+        textarea#add-word-input:focus { border-color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <div id="intro-screen">
+        <div style="font-size: 4rem; margin-bottom: 10px;">🌸</div>
+        <div style="font-size: 2rem; font-weight: 900;">JAPANESE MASTER</div>
+    </div>
+
+    <!-- 로비 -->
+    <div id="lobby-page" class="page active">
+        <div class="header">
+            <span style="color:var(--primary)">JAPANESE MASTER</span>
+            <span id="total-stars" style="color:var(--star-color); background:#FFFBEB; padding:4px 10px; border-radius:20px; font-size:0.9rem;">⭐ 0</span>
+        </div>
+        <div class="lobby-content">
+            
+            <button id="btn-continue" class="tool-btn full-width continue" onclick="resumeSession()">▶ 이어서 학습하기 (0개 남음)</button>
+
+            <div class="session-config">
+                <div style="font-weight:700; color:#334155; font-size:1.1rem;">
+                    🎯 이번 학습 목표: <span id="val-display" style="color:var(--primary)">전체</span>
+                </div>
+                <input type="range" id="count-slider" min="0" max="100" step="1" oninput="updateSliderUI()">
+                
+                <div class="learning-mode-btns">
+                    <button class="modal-action-btn secondary" style="margin-bottom:0; flex:1;" onclick="startSequentialWords()">순서대로 학습</button>
+                    <button class="modal-action-btn primary" style="margin-bottom:0; flex:1;" onclick="startRandomWords()">랜덤 학습</button>
+                </div>
+            </div>
+
+            <div class="tool-btn-group">
+                <button class="tool-btn highlight" onclick="startFavorites()">⭐ 즐겨찾기만 복습</button>
+                <button class="tool-btn" onclick="openEditModal()">✏️ 단어 및 메모 수정</button>
+            </div>
+            
+            <div class="tool-btn-group" style="margin-top: 15px;">
+                <button class="tool-btn" onclick="openAddWordModal()">➕ 대량 단어 추가</button>
+                <button class="tool-btn" onclick="exportPDF()">📄 PDF 인쇄 (형광펜+메모)</button>
+                
+                <!-- JSON 입출력 영역 -->
+                <button class="tool-btn" onclick="exportJSON()">💾 백업 저장</button>
+                <button class="tool-btn" onclick="document.getElementById('import-json-upload').click()">📂 백업 불러오기</button>
+                <input type="file" id="import-json-upload" accept=".json" style="display: none;" onchange="importJSON(event)">
+            </div>
+            
+            <div style="margin-top: 15px;">
+                <button class="tool-btn full-width" onclick="resetToDefault()" style="color:#DC2626;">🗑 전체 초기화</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 게임 -->
+    <div id="game-page" class="page">
+        <div class="header">
+            <button onclick="openPauseModal()" style="background:none; border:none; font-size:1.4rem; color:#64748B; padding:0 10px;">⏸</button>
+            <div id="stage-info" style="font-size:1rem;">단어 학습</div>
+            <span id="queue-count" style="color:var(--primary); font-variant-numeric: tabular-nums; font-size:0.9rem;">0 left</span>
+        </div>
+        
+        <div class="game-container" id="touchArea">
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill"></div></div>
+            <div id="bg-overlay"><div id="bg-icon"></div></div>
+            
+            <div class="card-wrapper" id="cardWrapper">
+                <div class="card-inner" id="cardInner">
+                    <div class="card-face card-front">
+                        <div class="star-toggle" id="starFront" onclick="toggleStar(event)">☆</div>
+                        <div class="word" id="jpWord">단어</div>
+                        <div style="margin-top:15px; color:#CBD5E1; font-size:0.8rem;">Tap to flip</div>
+                    </div>
+                    <div class="card-face card-back">
+                        <div class="star-toggle" id="starBack" onclick="toggleStar(event)">☆</div>
+                        <div class="meaning" id="krMeaning">의미</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="swipe-hint">
+                <div class="hint-pill no">← 다시 학습</div>
+                <div class="hint-pill ok">외웠음 →</div>
+            </div>
+            
+            <div class="nav-bar">
+                <button class="nav-btn no" onclick="markNo()">✕ 다시</button>
+                <button class="nav-btn ok" onclick="markOk()">○ 외움</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 단어 및 메모 수정 모달 -->
+    <div id="edit-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>✏️ 단어 및 메모 수정</h3>
+                <button onclick="closeEditModal()">✕</button>
+            </div>
+            <div class="modal-content">
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <h4 style="margin: 0; color: var(--primary);">📝 요약 메모</h4>
+                        <button class="tool-btn highlight" style="padding: 6px 12px; font-size: 0.85rem; margin:0;" onclick="document.getElementById('memo-img-upload').click()">🖼️ 사진 넣기</button>
+                        <input type="file" id="memo-img-upload" accept="image/*" style="display: none;" onchange="insertImage(this)">
+                    </div>
+                    <p style="font-size:0.75rem; color:#94a3b8; margin:0 0 10px 0;">
+                        ※ 추가된 사진은 자동으로 압축되며, 모서리를 드래그하여 크기를 조절할 수 있습니다.<br>
+                        ※ 사진을 꾹 눌러 글자 사이로 드래그하면 위치가 바뀝니다.
+                    </p>
+                    
+                    <div id="edit-memo-input" class="rich-editor" contenteditable="true" placeholder="여기에 메모를 작성하거나 사진을 추가하세요..."></div>
+                </div>
+                
+                <h4 style="margin: 0 0 10px 0; color: var(--primary);">📚 단어 수정 및 삭제 (★ 클릭 시 즐겨찾기)</h4>
+                <div id="edit-words-container">
+                    <!-- JS로 렌더링 됨 -->
+                </div>
+            </div>
+            <div style="padding: 15px; background: white; border-top: 1px solid #eee;">
+                <button class="modal-action-btn success" style="margin-bottom:0;" onclick="saveEdits()">💾 변경사항 저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 대량 단어 추가 모달 -->
+    <div id="add-word-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>➕ 대량 단어 추가</h3>
+                <button onclick="closeAddWordModal()">✕</button>
+            </div>
+            <div class="modal-content">
+                <p style="font-size:0.85rem; color:#64748b; margin-top:0;">
+                    아래 형식으로 단어를 입력하세요. 여러 개 입력 시 줄바꿈으로 구분합니다.<br>
+                    <b>형식: 일본어|한국어의미</b><br>
+                    예: <code style="background:#f1f5f9; padding:2px 4px; border-radius:4px;">さくら|벚꽃</code>
+                </p>
+                <textarea id="add-word-input" placeholder="さくら|벚꽃&#10;はる|봄&#10;あつい|덥다"></textarea>
+                <button class="modal-action-btn primary" onclick="processAddWords()">저장하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 완료 모달 -->
+    <div id="complete-modal" class="overlay-modal">
+        <div class="modal-card">
+            <div class="emoji">🎉</div>
+            <h2>학습 완료!</h2>
+            <p id="complete-msg">모든 카드를 학습했습니다!</p>
+            <button class="modal-action-btn primary" onclick="goBackAndClearSession()">← 메뉴로 돌아가기</button>
+        </div>
+    </div>
+
+    <!-- 일시정지 모달 -->
+    <div id="pause-modal" class="overlay-modal">
+        <div class="modal-card">
+            <div class="emoji">⏸</div>
+            <h2>일시정지</h2>
+            <p id="pause-msg">현재 진행 상태가 자동으로 저장됩니다.</p>
+            <button class="modal-action-btn primary" onclick="closePauseModal()">▶ 계속 학습하기</button>
+            <button class="modal-action-btn secondary" onclick="goBack()">🏠 로비로 나가기</button>
+        </div>
+    </div>
+
+    <script>
+        // 초기 기본 데이터 (빈 배열)
+        const initialJpData = [];
+
+        // 로컬스토리지 데이터 로드
+        let rawData = JSON.parse(localStorage.getItem('jpDataFlat')) || initialJpData;
+        let jpData = rawData.map((item, idx) => {
+            if (!item.id) return { ...item, id: 'w_' + Date.now() + '_' + idx };
+            return item;
+        });
+        
+        let starredWords = JSON.parse(localStorage.getItem('jpStarsFlat') || '[]');
+        let memoData = localStorage.getItem('jpMemoRich') || ""; 
+        
+        let currentSession = JSON.parse(localStorage.getItem('jpSession')) || null;
+
+        let activeQueue = [];
+        let totalCount = 0;
+        let isFlipped = false;
+        let isFavMode = false;
+
+        const editModal = document.getElementById('edit-modal');
+        const addWordModal = document.getElementById('add-word-modal');
+        const completeModal = document.getElementById('complete-modal');
+        const pauseModal = document.getElementById('pause-modal');
+
+        setTimeout(() => document.getElementById('intro-screen').classList.add('hidden'), 1000);
+
+        // 로비 UI 업데이트
+        function updateLobbyUI() {
+            document.getElementById('total-stars').innerText = `⭐ ${starredWords.length}`;
+            
+            const slider = document.getElementById('count-slider');
+            slider.max = jpData.length > 0 ? jpData.length : 1;
+            updateSliderUI();
+
+            const btnContinue = document.getElementById('btn-continue');
+            if (currentSession && currentSession.queue && currentSession.queue.length > 0) {
+                btnContinue.style.display = 'block';
+                btnContinue.innerText = `▶ 이어서 학습하기 (${currentSession.queue.length}개 남음)`;
+            } else {
+                btnContinue.style.display = 'none';
+            }
+        }
+
+        function updateSliderUI() {
+            const slider = document.getElementById('count-slider');
+            const display = document.getElementById('val-display');
+            if(jpData.length === 0) {
+                display.innerText = "단어 없음";
+                slider.value = 0;
+            } else if(parseInt(slider.value) >= jpData.length) {
+                slider.value = jpData.length;
+                display.innerText = `전체 (${jpData.length}개)`;
+            } else {
+                display.innerText = `${slider.value}개`;
+            }
+        }
+
+        window.onload = updateLobbyUI;
+
+        function showPage(id) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        // =====================================
+        // 학습 시작 로직
+        // =====================================
+        function saveSessionState() {
+            currentSession = { queue: activeQueue, total: totalCount, isFav: isFavMode };
+            localStorage.setItem('jpSession', JSON.stringify(currentSession));
+            updateLobbyUI();
+        }
+
+        function clearSessionState() {
+            currentSession = null;
+            localStorage.removeItem('jpSession');
+            updateLobbyUI();
+        }
+
+        function startSequentialWords() {
+            if(jpData.length === 0) { alert("추가된 단어가 없습니다. 먼저 단어를 추가해주세요."); return; }
+            isFavMode = false;
+            let count = parseInt(document.getElementById('count-slider').value);
+            if(count === 0) count = jpData.length;
+            
+            activeQueue = [...jpData].slice(0, count);
+            totalCount = activeQueue.length;
+            
+            if(totalCount === 0) return;
+            
+            document.getElementById('stage-info').innerText = `순서대로 학습 (${totalCount}개)`;
+            saveSessionState();
+            initGame();
+        }
+
+        function startRandomWords() {
+            if(jpData.length === 0) { alert("추가된 단어가 없습니다. 먼저 단어를 추가해주세요."); return; }
+            isFavMode = false;
+            let count = parseInt(document.getElementById('count-slider').value);
+            if(count === 0) count = jpData.length;
+            
+            let shuffled = [...jpData].sort(() => Math.random() - 0.5);
+            activeQueue = shuffled.slice(0, count);
+            totalCount = activeQueue.length;
+            
+            if(totalCount === 0) return;
+            
+            document.getElementById('stage-info').innerText = `랜덤 학습 (${totalCount}개)`;
+            saveSessionState();
+            initGame();
+        }
+
+        function startFavorites() {
+            if (starredWords.length === 0) { alert("즐겨찾기한 단어가 없습니다."); return; }
+            isFavMode = true;
+            activeQueue = jpData.filter(w => starredWords.includes(w.id));
+            activeQueue.sort(() => Math.random() - 0.5);
+            totalCount = activeQueue.length;
+            document.getElementById('stage-info').innerText = "⭐ 복습 모드";
+            saveSessionState();
+            initGame();
+        }
+
+        function resumeSession() {
+            if (!currentSession || !currentSession.queue || currentSession.queue.length === 0) return;
+            activeQueue = currentSession.queue;
+            totalCount = currentSession.total;
+            isFavMode = currentSession.isFav;
+            document.getElementById('stage-info').innerText = isFavMode ? "⭐ 복습 이어하기" : "학습 이어하기";
+            initGame();
+        }
+        
+        // =====================================
+        // 데이터 수정 및 메모 기능 
+        // =====================================
+        
+        function openEditModal() {
+            document.getElementById('edit-memo-input').innerHTML = memoData;
+            
+            const container = document.getElementById('edit-words-container');
+            container.innerHTML = '';
+            
+            if (jpData.length === 0) {
+                container.innerHTML = '<p style="color:#94a3b8; font-size:0.9rem; text-align:center;">등록된 단어가 없습니다.</p>';
+            } else {
+                jpData.forEach((w) => {
+                    const isStar = starredWords.includes(w.id);
+                    const starColor = isStar ? 'var(--star-color)' : '#ccc';
+                    const starChar = isStar ? '★' : '☆';
+
+                    const row = document.createElement('div');
+                    row.className = 'edit-row';
+                    row.innerHTML = `
+                        <button type="button" class="list-star-btn" onclick="toggleEditListStar('${w.id}', this)" style="color:${starColor}">${starChar}</button>
+                        <input type="text" class="edit-jp" value="${w.jp}" placeholder="일본어" data-id="${w.id}">
+                        <input type="text" class="edit-kr" value="${w.kr}" placeholder="뜻">
+                        <button class="delete-btn" onclick="this.parentElement.remove()">✕</button>
+                    `;
+                    container.appendChild(row);
+                });
+            }
+            
+            editModal.style.display = 'flex';
+            setTimeout(() => editModal.classList.add('visible'), 10);
+        }
+
+        function closeEditModal() {
+            editModal.classList.remove('visible');
+            setTimeout(() => editModal.style.display = 'none', 300);
+        }
+
+        function toggleEditListStar(id, btnElement) {
+            const idx = starredWords.indexOf(id);
+            if (idx > -1) {
+                starredWords.splice(idx, 1);
+                btnElement.innerText = '☆';
+                btnElement.style.color = '#ccc';
+            } else {
+                starredWords.push(id);
+                btnElement.innerText = '★';
+                btnElement.style.color = 'var(--star-color)';
+            }
+            localStorage.setItem('jpStarsFlat', JSON.stringify(starredWords));
+            updateLobbyUI();
+        }
+
+        // =====================================
+        // 캔버스를 이용한 이미지 압축 삽입 기능
+        // =====================================
+        function insertImage(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                
+                // 메모리 뻗음 방지용 10MB 제한
+                if(file.size > 10 * 1024 * 1024) { 
+                    alert("이미지 용량이 너무 큽니다. 10MB 이하의 이미지를 사용해주세요.");
+                    input.value = '';
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        // 캔버스 사이즈 축소 (최대 너비 800px)
+                        const MAX_WIDTH = 800;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > MAX_WIDTH) {
+                            height = Math.round((height * MAX_WIDTH) / width);
+                            width = MAX_WIDTH;
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // JPEG 포맷, 품질 0.7로 압축 변환
+                        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+                        const imgHtml = `
+                            <div class="img-wrapper" style="width: 200px;">
+                                <img src="${compressedDataUrl}">
+                            </div>&nbsp;
+                        `;
+                        const editor = document.getElementById('edit-memo-input');
+                        editor.focus();
+                        document.execCommand('insertHTML', false, imgHtml);
+                    };
+                    img.src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+            input.value = ''; 
+        }
+
+        function saveEdits() {
+            try {
+                memoData = document.getElementById('edit-memo-input').innerHTML;
+                localStorage.setItem('jpMemoRich', memoData);
+            } catch (e) {
+                alert("메모 저장 실패! 브라우저 저장 한도를 초과했습니다. 이미지를 지우고 다시 시도해주세요.");
+                return;
+            }
+            
+            const rows = document.querySelectorAll('.edit-row');
+            let newData = [];
+            
+            rows.forEach(row => {
+                const jpInput = row.querySelector('.edit-jp');
+                const krInput = row.querySelector('.edit-kr');
+                const id = jpInput.getAttribute('data-id');
+                
+                if(jpInput && jpInput.value.trim() !== '') {
+                    newData.push({ jp: jpInput.value.trim(), kr: krInput.value.trim(), id: id });
+                }
+            });
+            
+            jpData = newData;
+            localStorage.setItem('jpDataFlat', JSON.stringify(jpData));
+            
+            const validIds = jpData.map(w => w.id);
+            starredWords = starredWords.filter(id => validIds.includes(id));
+            localStorage.setItem('jpStarsFlat', JSON.stringify(starredWords));
+            
+            clearSessionState();
+            
+            alert("변경사항이 성공적으로 저장되었습니다!");
+            updateLobbyUI();
+            closeEditModal();
+        }
+
+        // =====================================
+        // 부가 도구 (단어 추가, 초기화)
+        // =====================================
+        function openAddWordModal() {
+            document.getElementById('add-word-input').value = '';
+            addWordModal.style.display = 'flex';
+            setTimeout(() => addWordModal.classList.add('visible'), 10);
+        }
+
+        function closeAddWordModal() {
+            addWordModal.classList.remove('visible');
+            setTimeout(() => addWordModal.style.display = 'none', 300);
+        }
+
+        function processAddWords() {
+            const input = document.getElementById('add-word-input').value;
+            const lines = input.split('\n');
+            let addedCount = 0;
+
+            lines.forEach(line => {
+                const parts = line.split('|').map(s => s.trim());
+                if (parts.length === 2 && parts[0] !== '') {
+                    jpData.push({ jp: parts[0], kr: parts[1], id: 'w_' + Date.now() + '_' + addedCount });
+                    addedCount++;
+                }
+            });
+
+            if (addedCount > 0) {
+                localStorage.setItem('jpDataFlat', JSON.stringify(jpData));
+                alert(`${addedCount}개의 단어가 추가되었습니다!`);
+                updateLobbyUI();
+                closeAddWordModal();
+            } else {
+                alert("형식을 다시 확인해주세요.\n예: さくら|벚꽃");
+            }
+        }
+
+        function resetToDefault() {
+            if(confirm("모든 단어와 메모, 즐겨찾기가 완전히 삭제됩니다. 진행하시겠습니까?")) {
+                localStorage.removeItem('jpDataFlat');
+                localStorage.removeItem('jpStarsFlat');
+                localStorage.removeItem('jpMemoRich');
+                clearSessionState();
+                
+                jpData = [];
+                starredWords = [];
+                memoData = "";
+                
+                updateLobbyUI();
+                alert("초기화 되었습니다.");
+            }
+        }
+
+        // =====================================
+        // JSON 백업 및 불러오기 기능
+        // =====================================
+        function exportJSON() {
+            const dataStr = JSON.stringify({ words: jpData, memo: memoData, stars: starredWords }, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Japanese_Backup.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.words && Array.isArray(data.words)) {
+                        jpData = data.words;
+                        memoData = data.memo || "";
+                        starredWords = data.stars || []; 
+                        
+                        localStorage.setItem('jpDataFlat', JSON.stringify(jpData));
+                        localStorage.setItem('jpMemoRich', memoData);
+                        localStorage.setItem('jpStarsFlat', JSON.stringify(starredWords));
+                        
+                        clearSessionState();
+                        updateLobbyUI();
+                        alert("데이터를 성공적으로 불러왔습니다!");
+                    } else {
+                        alert("잘못된 형식의 백업 파일입니다.");
+                    }
+                } catch (err) {
+                    alert("파일을 읽는 중 오류가 발생했습니다. 올바른 JSON 파일인지 확인해주세요.");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; 
+        }
+
+        // =====================================
+        // PDF 인쇄 
+        // =====================================
+        function exportPDF() {
+            let printHtml = `
+            <html><head><title>일본어 단어장</title>
+            <style>
+                @page { size: A4; margin: 15mm; }
+                body { 
+                    font-family: 'Malgun Gothic', sans-serif; font-size: 11px; margin: 0; padding: 0; color: #1e293b; 
+                    -webkit-print-color-adjust: exact !important; 
+                    print-color-adjust: exact !important;
+                }
+                table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 20px;}
+                thead { display: table-header-group; }
+                tr { page-break-inside: avoid; }
+                th { font-size: 18px; color: #FF5C8D; border: none; border-bottom: 2px solid #FF5C8D; padding-bottom: 10px; margin-bottom: 10px; }
+                th, td { border: 1px solid #cbd5e1; padding: 6px 8px; vertical-align: middle; }
+                
+                .jp { 
+                    font-size: 12px; font-weight: bold; font-family: 'Meiryo', sans-serif; width: 20%; 
+                    background-color: #f8fafc !important; 
+                }
+                .kr { width: 30%; }
+                
+                .highlight-star { 
+                    background-color: #fef08a !important; 
+                    padding: 2px 4px; 
+                    border-radius: 4px; 
+                }
+                
+                .memo-section { 
+                    margin-top: 20px; padding: 15px; border: 2px dashed #cbd5e1; border-radius: 8px; 
+                    background: #f8fafc !important; page-break-inside: avoid; 
+                }
+                .memo-section h3 { margin: 0 0 10px 0; color: #FF5C8D; font-size: 14px; }
+                .memo-content { font-size: 12px; line-height: 1.6; }
+                
+                .img-wrapper { resize: none !important; border: none !important; display: inline-block; }
+                .img-wrapper img { max-width: 100%; height: auto; }
+            </style>
+            </head><body>
+            <table>
+                <thead><tr><th colspan="4">🌸 일본어 단어장 🌸</th></tr></thead>
+                <tbody>
+            `;
+
+            if(jpData.length === 0) {
+                printHtml += `<tr><td colspan="4" style="text-align:center;">단어가 없습니다.</td></tr>`;
+            } else {
+                for (let i = 0; i < jpData.length; i += 2) {
+                    let w1 = jpData[i]; let w2 = jpData[i + 1];
+                    printHtml += `<tr>`;
+                    
+                    if (w1) {
+                        let isStar1 = starredWords.includes(w1.id);
+                        let hlClass1 = isStar1 ? 'highlight-star' : '';
+                        let starIcon1 = isStar1 ? ' ⭐' : '';
+                        printHtml += `<td class="jp"><span class="${hlClass1}">${w1.jp}${starIcon1}</span></td><td class="kr">${w1.kr}</td>`;
+                    } else { printHtml += `<td class="jp"></td><td class="kr"></td>`; }
+                    
+                    if (w2) {
+                        let isStar2 = starredWords.includes(w2.id);
+                        let hlClass2 = isStar2 ? 'highlight-star' : '';
+                        let starIcon2 = isStar2 ? ' ⭐' : '';
+                        printHtml += `<td class="jp"><span class="${hlClass2}">${w2.jp}${starIcon2}</span></td><td class="kr">${w2.kr}</td>`;
+                    } else { printHtml += `<td class="jp"></td><td class="kr"></td>`; }
+                    
+                    printHtml += `</tr>`;
+                }
+            }
+            printHtml += `</tbody></table>`;
+
+            if (memoData && memoData.trim() !== '') {
+                printHtml += `
+                <div class="memo-section">
+                    <h3>📝 요약 메모</h3>
+                    <div class="memo-content">${memoData}</div>
+                </div>`;
+            }
+
+            printHtml += `</body></html>`;
+            
+            const printWin = window.open('', '_blank');
+            printWin.document.open();
+            printWin.document.write(printHtml);
+            printWin.document.close();
+            
+            setTimeout(() => { printWin.focus(); printWin.print(); }, 500);
+        }
+
+        // =====================================
+        // 게임 진행 로직
+        // =====================================
+        function initGame() {
+            updateCard();
+            updateProgress();
+            showPage('game-page');
+        }
+
+        function updateProgress() {
+            const remaining = activeQueue.length;
+            const done = totalCount - remaining;
+            const pct = totalCount > 0 ? (done / totalCount) * 100 : 0;
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('queue-count').innerText = `${remaining} left`;
+        }
+
+        function updateCard() {
+            if (activeQueue.length === 0) {
+                clearSessionState();
+                showComplete();
+                return;
+            }
+            
+            const card = activeQueue[0];
+            document.getElementById('jpWord').innerText = card.jp;
+            document.getElementById('krMeaning').innerText = card.kr;
+            
+            const isS = starredWords.includes(card.id);
+            document.getElementById('starFront').innerText = isS ? "★" : "☆";
+            document.getElementById('starBack').innerText = isS ? "★" : "☆";
+            document.getElementById('starFront').classList.toggle('active', isS);
+            document.getElementById('starBack').classList.toggle('active', isS);
+            
+            resetCardUI();
+        }
+
+        function showComplete() {
+            document.getElementById('complete-msg').innerText = `총 ${totalCount}개의 단어를 완료했습니다! 🎓`;
+            completeModal.classList.add('visible');
+        }
+
+        function openPauseModal() {
+            saveSessionState();
+            pauseModal.classList.add('visible');
+        }
+
+        function closePauseModal() {
+            pauseModal.classList.remove('visible');
+        }
+
+        function markOk() {
+            if (activeQueue.length === 0) return;
+            activeQueue.shift();
+            saveSessionState();
+            updateProgress();
+            animateCardChange('ok');
+        }
+
+        function markNo() {
+            if (activeQueue.length === 0) return;
+            const card = activeQueue.shift();
+            activeQueue.push(card);
+            saveSessionState();
+            animateCardChange('no');
+        }
+
+        function toggleStar(e) {
+            e.stopPropagation();
+            if (activeQueue.length === 0) return;
+            const card = activeQueue[0];
+            const idx = starredWords.indexOf(card.id);
+            
+            if (idx > -1) starredWords.splice(idx, 1);
+            else starredWords.push(card.id);
+            
+            localStorage.setItem('jpStarsFlat', JSON.stringify(starredWords));
+            
+            const isS = starredWords.includes(card.id);
+            document.getElementById('starFront').innerText = isS ? "★" : "☆";
+            document.getElementById('starBack').innerText = isS ? "★" : "☆";
+            document.getElementById('starFront').classList.toggle('active', isS);
+            document.getElementById('starBack').classList.toggle('active', isS);
+        }
+
+        function goBackAndClearSession() {
+            completeModal.classList.remove('visible');
+            clearSessionState();
+            updateLobbyUI();
+            showPage('lobby-page');
+        }
+
+        function goBack() { 
+            pauseModal.classList.remove('visible');
+            updateLobbyUI(); 
+            showPage('lobby-page'); 
+        }
+
+        // 스와이프 기능
+        const touchArea = document.getElementById('touchArea');
+        const cw = document.getElementById('cardWrapper');
+        const ci = document.getElementById('cardInner');
+        const bgOverlay = document.getElementById('bg-overlay');
+        const bgIcon = document.getElementById('bg-icon');
+        
+        let startX = 0, currentX = 0, isDragging = false;
+
+        touchArea.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
+
+        cw.addEventListener('touchstart', e => {
+            if(e.target.closest('.star-toggle') || e.target.closest('.nav-btn')) return;
+            isDragging = true; startX = e.touches[0].clientX; currentX = startX; cw.style.transition = 'none';
+        }, { passive: false });
+
+        cw.addEventListener('touchmove', e => {
+            if (!isDragging) return;
+            e.preventDefault();
+            currentX = e.touches[0].clientX;
+            let dx = currentX - startX;
+            cw.style.transform = `translateX(${dx}px) rotate(${dx * 0.05}deg)`;
+            
+            const prog = Math.min(Math.abs(dx) / (window.innerWidth * 0.4), 1);
+            bgOverlay.style.opacity = 1;
+            if (dx > 0) { bgOverlay.style.backgroundColor = `rgba(139, 195, 74, ${prog * 0.8})`; bgIcon.innerText = "O"; } 
+            else { bgOverlay.style.backgroundColor = `rgba(239, 83, 80, ${prog * 0.8})`; bgIcon.innerText = "X"; }
+            bgIcon.style.transform = `scale(${0.5 + prog * 0.5})`;
+        }, { passive: false });
+
+        cw.addEventListener('touchend', e => {
+            bgOverlay.style.opacity = 0; bgIcon.style.transform = 'scale(0.5)';
+            if (!isDragging) return;
+            isDragging = false;
+            let dx = currentX - startX;
+
+            if (Math.abs(dx) < 15) {
+                isFlipped = !isFlipped;
+                ci.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+                ci.classList.toggle('flipped', isFlipped);
+                cw.style.transition = 'transform 0.3s'; cw.style.transform = 'translateX(0) rotate(0)';
+                return;
+            }
+
+            if (Math.abs(dx) > 80) {
+                if (dx > 0) markOk(); else markNo();
+            } else {
+                cw.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                cw.style.transform = 'translateX(0) rotate(0)';
+            }
+        });
+
+        function animateCardChange(type) {
+            const destX = type === 'ok' ? window.innerWidth + 200 : -window.innerWidth - 200;
+            const rot = type === 'ok' ? 30 : -30;
+            cw.style.transition = 'transform 0.25s ease-out';
+            cw.style.transform = `translateX(${destX}px) rotate(${rot}deg)`;
+            setTimeout(() => updateCard(), 250);
+        }
+
+        function resetCardUI() {
+            isFlipped = false;
+            ci.style.transition = 'none'; ci.classList.remove('flipped');
+            cw.style.transition = 'none'; cw.style.transform = 'translateX(0) rotate(0)';
+            void cw.offsetWidth; 
+        }
+    </script>
+</body>
+</html>
