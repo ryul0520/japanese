@@ -234,6 +234,35 @@
                 <input type="file" id="import-deck-upload" accept=".json" style="display: none;" onchange="importDeck(event)">
             </div>
 
+            <!-- 글로벌 전체 단어 학습 기능 UI 추가 -->
+            <div class="session-config" id="global-session-config" style="margin-bottom: 20px;">
+                <h3 style="margin: 0 0 10px 0; color: var(--primary); font-size: 1.1rem; display: flex; justify-content: center; align-items: center; gap: 6px;">
+                    <span>🌟</span> 전체 단어장 통합 학습
+                </h3>
+                <div style="font-weight:700; color:#334155; font-size:1rem; margin-bottom:10px; text-align:center;">
+                    🎯 통합 학습 목표: <span id="global-val-display" style="color:var(--primary)">전체</span>
+                </div>
+                <input type="range" id="global-count-slider" min="0" max="100" step="1" oninput="updateGlobalSliderUI()">
+                
+                <div class="direction-toggle" style="margin: 15px 0 10px 0; display: flex; justify-content: center; gap: 20px; font-weight: 700; color: #334155; font-size: 0.95rem;">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                        <input type="radio" name="global-card-dir" value="jp-kr" checked style="accent-color: var(--primary); width:18px; height:18px;">
+                        🇯🇵 일본어 먼저
+                    </label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                        <input type="radio" name="global-card-dir" value="kr-jp" style="accent-color: var(--primary); width:18px; height:18px;">
+                        🇰🇷 한국어 먼저
+                    </label>
+                </div>
+
+                <div class="learning-mode-btns">
+                    <button class="modal-action-btn secondary" style="margin-bottom:0; flex:1;" onclick="startGlobalSequentialWords()">순서대로 학습</button>
+                    <button class="modal-action-btn primary" style="margin-bottom:0; flex:1;" onclick="startGlobalRandomWords()">랜덤 학습</button>
+                </div>
+                
+                <button id="btn-global-continue" class="tool-btn full-width continue" onclick="resumeGlobalSession()" style="margin-top: 15px; display:none;">▶ 통합 이어서 학습하기 (0개 남음)</button>
+            </div>
+
             <div class="deck-list" id="deck-list-container">
                 <!-- 자바스크립트로 덱 리스트가 렌더링 됩니다 -->
             </div>
@@ -410,7 +439,7 @@
             <div class="emoji">🎉</div>
             <h2>학습 완료!</h2>
             <p id="complete-msg">모든 카드를 학습했습니다!</p>
-            <button class="modal-action-btn primary" onclick="goBackAndClearSession()">← 단어장 메뉴로 돌아가기</button>
+            <button class="modal-action-btn primary" onclick="goBackAndClearSession()">← 메뉴로 돌아가기</button>
         </div>
     </div>
 
@@ -420,7 +449,7 @@
             <h2>일시정지</h2>
             <p id="pause-msg">현재 진행 상태가 자동으로 저장됩니다.</p>
             <button class="modal-action-btn primary" onclick="closePauseModal()">▶ 계속 학습하기</button>
-            <button class="modal-action-btn secondary" onclick="goBackToLobby()">🏠 단어장 메뉴로 나가기</button>
+            <button class="modal-action-btn secondary" onclick="goBackToLobby()">🏠 메뉴로 나가기</button>
         </div>
     </div>
 
@@ -437,6 +466,9 @@
         // --- 데이터 관리 (다중 단어장 시스템) ---
         let appData = []; 
         let currentDeckIndex = -1;
+
+        // 글로벌 통합 학습용 변수
+        let isGlobalMode = false;
 
         function migrateLegacyData() {
             let oldWords = localStorage.getItem('jpDataFlat');
@@ -478,6 +510,25 @@
             return appData[currentDeckIndex];
         }
 
+        // 카드 id를 기반으로 단어장이 속한 덱을 반환 (통합 모드에서 활용)
+        function getDeckByCardId(cardId) {
+            for (let i = 0; i < appData.length; i++) {
+                if (appData[i].words.find(w => w.id === cardId)) return appData[i];
+            }
+            return null;
+        }
+
+        // 모든 덱의 단어를 합쳐서 반환
+        function getAllWords() {
+            let allWords = [];
+            appData.forEach(deck => {
+                if (deck.words) {
+                    allWords = allWords.concat(deck.words);
+                }
+            });
+            return allWords;
+        }
+
         // 초기화
         setTimeout(() => document.getElementById('intro-screen').classList.add('hidden'), 1000);
         window.onload = loadAppData;
@@ -496,10 +547,46 @@
             }
         }
 
+        // 글로벌 학습 슬라이더 UI 갱신
+        function updateGlobalSliderUI() {
+            const slider = document.getElementById('global-count-slider');
+            const display = document.getElementById('global-val-display');
+            const allWordsLength = getAllWords().length;
+            if (allWordsLength === 0) {
+                display.innerText = "단어 없음";
+                if(slider) slider.value = 0;
+            } else if (parseInt(slider.value) >= allWordsLength) {
+                slider.value = allWordsLength;
+                display.innerText = `전체 (${allWordsLength}개)`;
+            } else {
+                display.innerText = `${slider.value}개`;
+            }
+        }
+
         // --- 메인 홈 화면 (단어장 관리) ---
         function renderHomeUI() {
             const container = document.getElementById('deck-list-container');
             container.innerHTML = '';
+
+            // 글로벌 학습 섹션 처리
+            const allWordsLength = getAllWords().length;
+            const globalSlider = document.getElementById('global-count-slider');
+            if (globalSlider) {
+                globalSlider.max = allWordsLength > 0 ? allWordsLength : 1;
+                updateGlobalSliderUI();
+            }
+
+            let globalSessionStr = localStorage.getItem('jpMasterGlobalSession');
+            let globalSession = globalSessionStr ? JSON.parse(globalSessionStr) : null;
+            let btnGlobalContinue = document.getElementById('btn-global-continue');
+            if (btnGlobalContinue) {
+                if (globalSession && globalSession.queue && globalSession.queue.length > 0) {
+                    btnGlobalContinue.style.display = 'block';
+                    btnGlobalContinue.innerText = `▶ 통합 이어서 학습하기 (${globalSession.queue.length}개 남음)`;
+                } else {
+                    btnGlobalContinue.style.display = 'none';
+                }
+            }
 
             if (appData.length === 0) {
                 container.innerHTML = '<div style="text-align:center; padding: 40px 20px; color:#94a3b8;">생성된 단어장이 없습니다.<br>새 단어장을 만들거나 불러와주세요!</div>';
@@ -771,6 +858,7 @@
 
         // --- 로비 (선택한 덱 내부) ---
         function openDeck(index) {
+            isGlobalMode = false;
             currentDeckIndex = index;
             updateLobbyUI();
             showPage('lobby-page');
@@ -838,15 +926,26 @@
         let isKrFirst = false; 
 
         function saveSessionState() {
-            getDeck().session = { queue: activeQueue, total: totalCount, isFav: isFavMode, isKrFirst: isKrFirst };
-            saveAppData();
-            updateLobbyUI();
+            if (isGlobalMode) {
+                let globalSession = { queue: activeQueue, total: totalCount, isFav: isFavMode, isKrFirst: isKrFirst };
+                localStorage.setItem('jpMasterGlobalSession', JSON.stringify(globalSession));
+                renderHomeUI();
+            } else {
+                getDeck().session = { queue: activeQueue, total: totalCount, isFav: isFavMode, isKrFirst: isKrFirst };
+                saveAppData();
+                updateLobbyUI();
+            }
         }
 
         function clearSessionState() {
-            getDeck().session = null;
-            saveAppData();
-            updateLobbyUI();
+            if (isGlobalMode) {
+                localStorage.removeItem('jpMasterGlobalSession');
+                renderHomeUI();
+            } else {
+                getDeck().session = null;
+                saveAppData();
+                updateLobbyUI();
+            }
         }
 
         function getDirectionPref() {
@@ -856,6 +955,7 @@
         function startSequentialWords() {
             const deck = getDeck();
             if(deck.words.length === 0) { alert("추가된 단어가 없습니다."); return; }
+            isGlobalMode = false;
             isFavMode = false;
             isKrFirst = getDirectionPref();
             let count = parseInt(document.getElementById('count-slider').value);
@@ -873,6 +973,7 @@
         function startRandomWords() {
             const deck = getDeck();
             if(deck.words.length === 0) { alert("추가된 단어가 없습니다."); return; }
+            isGlobalMode = false;
             isFavMode = false;
             isKrFirst = getDirectionPref();
             let count = parseInt(document.getElementById('count-slider').value);
@@ -891,6 +992,7 @@
         function startFavorites() {
             const deck = getDeck();
             if (deck.stars.length === 0) { alert("즐겨찾기한 단어가 없습니다."); return; }
+            isGlobalMode = false;
             isFavMode = true;
             isKrFirst = getDirectionPref();
             activeQueue = deck.words.filter(w => deck.stars.includes(w.id));
@@ -902,6 +1004,7 @@
         }
 
         function resumeSession() {
+            isGlobalMode = false;
             const session = getDeck().session;
             if (!session || !session.queue || session.queue.length === 0) return;
             activeQueue = session.queue;
@@ -909,6 +1012,60 @@
             isFavMode = session.isFav;
             isKrFirst = session.isKrFirst || false;
             document.getElementById('stage-info').innerText = isFavMode ? "⭐ 복습 이어하기" : "학습 이어하기";
+            initGame();
+        }
+
+        // 글로벌(전체 단어장) 학습 모드 함수들
+        function startGlobalSequentialWords() {
+            let allWords = getAllWords();
+            if(allWords.length === 0) { alert("추가된 단어가 없습니다."); return; }
+            isGlobalMode = true;
+            isFavMode = false;
+            isKrFirst = document.querySelector('input[name="global-card-dir"]:checked').value === 'kr-jp';
+            
+            let count = parseInt(document.getElementById('global-count-slider').value);
+            if(count === 0) count = allWords.length;
+            
+            activeQueue = [...allWords].slice(0, count);
+            totalCount = activeQueue.length;
+            
+            if(totalCount === 0) return;
+            document.getElementById('stage-info').innerText = `통합 순서대로 학습 (${totalCount}개)`;
+            saveSessionState();
+            initGame();
+        }
+
+        function startGlobalRandomWords() {
+            let allWords = getAllWords();
+            if(allWords.length === 0) { alert("추가된 단어가 없습니다."); return; }
+            isGlobalMode = true;
+            isFavMode = false;
+            isKrFirst = document.querySelector('input[name="global-card-dir"]:checked').value === 'kr-jp';
+            
+            let count = parseInt(document.getElementById('global-count-slider').value);
+            if(count === 0) count = allWords.length;
+            
+            let shuffled = [...allWords].sort(() => Math.random() - 0.5);
+            activeQueue = shuffled.slice(0, count);
+            totalCount = activeQueue.length;
+            
+            if(totalCount === 0) return;
+            document.getElementById('stage-info').innerText = `통합 랜덤 학습 (${totalCount}개)`;
+            saveSessionState();
+            initGame();
+        }
+
+        function resumeGlobalSession() {
+            let globalSessionStr = localStorage.getItem('jpMasterGlobalSession');
+            if (!globalSessionStr) return;
+            const session = JSON.parse(globalSessionStr);
+            if (!session || !session.queue || session.queue.length === 0) return;
+            isGlobalMode = true;
+            activeQueue = session.queue;
+            totalCount = session.total;
+            isFavMode = session.isFav;
+            isKrFirst = session.isKrFirst || false;
+            document.getElementById('stage-info').innerText = "통합 학습 이어하기";
             initGame();
         }
 
@@ -937,11 +1094,14 @@
             activeQueue[0].jp = newJp;
             activeQueue[0].kr = newKr;
             
-            const deck = getDeck();
-            const targetIndex = deck.words.findIndex(w => w.id === currentId);
-            if (targetIndex > -1) {
-                deck.words[targetIndex].jp = newJp;
-                deck.words[targetIndex].kr = newKr;
+            const deck = isGlobalMode ? getDeckByCardId(currentId) : getDeck();
+            if (deck) {
+                const targetIndex = deck.words.findIndex(w => w.id === currentId);
+                if (targetIndex > -1) {
+                    deck.words[targetIndex].jp = newJp;
+                    deck.words[targetIndex].kr = newKr;
+                    saveAppData();
+                }
             }
             saveSessionState(); 
             updateCard();       
@@ -1109,7 +1269,7 @@
             editor.addEventListener('dragstart', e => e.preventDefault());
         });
 
-        // --- 단일 PDF 출력 (잘림 방지 및 세로(위->아래) 렌더링 적용) ---
+        // --- 단일 PDF 출력 ---
         function openPdfModal() { document.getElementById('pdf-modal').classList.add('visible'); }
         function closePdfModal() { document.getElementById('pdf-modal').classList.remove('visible'); }
         function executePrint(mode) { closePdfModal(); exportPDF(mode); }
@@ -1228,7 +1388,16 @@
             if (activeQueue.length === 0) { clearSessionState(); showComplete(); return; }
             
             const card = activeQueue[0];
-            const deck = getDeck();
+            const deck = isGlobalMode ? getDeckByCardId(card.id) : getDeck();
+            
+            // 삭제된 덱 등의 이유로 카드를 찾을 수 없을 때의 안전 장치
+            if (!deck) {
+                activeQueue.shift();
+                totalCount--; 
+                updateCard();
+                return;
+            }
+
             const frontEl = document.getElementById('jpWord');
             const backEl = document.getElementById('krMeaning');
 
@@ -1272,7 +1441,9 @@
             e.stopPropagation();
             if (activeQueue.length === 0) return;
             const card = activeQueue[0];
-            const deck = getDeck();
+            const deck = isGlobalMode ? getDeckByCardId(card.id) : getDeck();
+            if (!deck) return;
+
             const idx = deck.stars.indexOf(card.id);
             
             if (idx > -1) deck.stars.splice(idx, 1);
@@ -1284,17 +1455,30 @@
             document.getElementById('starBack').innerText = isS ? "★" : "☆";
             document.getElementById('starFront').classList.toggle('active', isS);
             document.getElementById('starBack').classList.toggle('active', isS);
+
+            if (!isGlobalMode) updateLobbyUI();
         }
 
         function goBackAndClearSession() {
             document.getElementById('complete-modal').classList.remove('visible');
             clearSessionState();
-            showPage('lobby-page');
+            if (isGlobalMode) {
+                renderHomeUI();
+                showPage('home-page');
+            } else {
+                showPage('lobby-page');
+            }
         }
+        
         function goBackToLobby() { 
             document.getElementById('pause-modal').classList.remove('visible'); 
-            updateLobbyUI(); 
-            showPage('lobby-page'); 
+            if (isGlobalMode) {
+                renderHomeUI();
+                showPage('home-page');
+            } else {
+                updateLobbyUI(); 
+                showPage('lobby-page'); 
+            }
         }
 
         // --- 스와이프 로직 ---
