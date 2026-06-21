@@ -260,6 +260,8 @@
                     <button class="modal-action-btn primary" style="margin-bottom:0; flex:1;" onclick="startGlobalRandomWords()">랜덤 학습</button>
                 </div>
                 
+                <button class="tool-btn highlight" style="width: 100%; margin-top: 10px; border-color: #FDE68A; background: #FFFBEB; color: #D97706;" onclick="startGlobalFavorites()">⭐ 전체 단어장 즐겨찾기만 복습</button>
+                
                 <button id="btn-global-continue" class="tool-btn full-width continue" onclick="resumeGlobalSession()" style="margin-top: 15px; display:none;">▶ 통합 이어서 학습하기 (0개 남음)</button>
             </div>
 
@@ -1051,6 +1053,34 @@
             
             if(totalCount === 0) return;
             document.getElementById('stage-info').innerText = `통합 랜덤 학습 (${totalCount}개)`;
+            saveSessionState();
+            initGame();
+        }
+
+        function startGlobalFavorites() {
+            let allFavWords = [];
+            appData.forEach(deck => {
+                if (deck.words && deck.stars) {
+                    let favs = deck.words.filter(w => deck.stars.includes(w.id));
+                    allFavWords = allFavWords.concat(favs);
+                }
+            });
+
+            if (allFavWords.length === 0) { 
+                alert("즐겨찾기한 단어가 없습니다."); 
+                return; 
+            }
+            
+            isGlobalMode = true;
+            isFavMode = true;
+            isKrFirst = document.querySelector('input[name="global-card-dir"]:checked').value === 'kr-jp';
+            
+            // 모든 즐겨찾기를 랜덤으로 섞음
+            allFavWords.sort(() => Math.random() - 0.5);
+            activeQueue = allFavWords;
+            totalCount = activeQueue.length;
+            
+            document.getElementById('stage-info').innerText = "⭐ 통합 복습 모드";
             saveSessionState();
             initGame();
         }
