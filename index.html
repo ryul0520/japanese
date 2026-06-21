@@ -182,8 +182,8 @@
         .card-inner.flipped .card-front { pointer-events: none; }
         .card-inner.flipped .card-back { pointer-events: auto; }
         
-        .word { font-size: 2.5rem; font-weight: 800; margin-bottom: 8px; word-break: keep-all; font-family: "Meiryo", sans-serif; }
-        .meaning { font-size: 1.8rem; font-weight: 700; color: var(--star-color); }
+        .word { font-size: 2.5rem; font-weight: 800; margin-bottom: 8px; word-break: keep-all; overflow-wrap: anywhere; font-family: "Meiryo", sans-serif; transition: font-size 0.2s; }
+        .meaning { font-size: 1.8rem; font-weight: 700; color: var(--star-color); word-break: keep-all; overflow-wrap: anywhere; transition: font-size 0.2s; }
         
         .star-toggle { position: absolute; top: 20px; right: 20px; font-size: 2.2rem; color: #E2E8F0; z-index: 100; padding: 10px; cursor: pointer; }
         .star-toggle.active { color: var(--star-color); }
@@ -230,7 +230,7 @@
                 <button class="tool-btn highlight" onclick="createNewDeck()">➕ 새 단어장</button>
                 <button class="tool-btn" onclick="document.getElementById('import-deck-upload').click()">📂 백업 불러오기</button>
                 <button class="tool-btn highlight" onclick="exportAllDecks()" style="background:#FFFBEB; border-color:#FDE68A; color:#D97706;">📦 통합 백업 다운</button>
-                <button class="tool-btn highlight" onclick="printAllDecks()" style="background:#ECFDF5; border-color:#A7F3D0; color:#059669;">🖨️ 통합 인쇄</button>
+                <button class="tool-btn highlight" onclick="openAllPdfModal()" style="background:#ECFDF5; border-color:#A7F3D0; color:#059669;">🖨️ 통합 인쇄</button>
                 <input type="file" id="import-deck-upload" accept=".json" style="display: none;" onchange="importDeck(event)">
             </div>
 
@@ -396,6 +396,15 @@
         </div>
     </div>
 
+    <div id="all-pdf-modal" class="overlay-modal">
+        <div class="modal-card">
+            <h2 style="font-size: 1.4rem; margin-bottom: 10px;">📄 전체 단어장 통합 인쇄</h2>
+            <button class="modal-action-btn primary" onclick="executeAllPrint('all')">📚 전체 단어 + 메모</button>
+            <button class="modal-action-btn" style="background:#FFFBEB; color:#D97706; border:1px solid #FDE68A;" onclick="executeAllPrint('fav')">⭐ 즐겨찾기만 + 메모</button>
+            <button class="modal-action-btn secondary" style="margin-top:5px;" onclick="closeAllPdfModal()">취소</button>
+        </div>
+    </div>
+
     <div id="complete-modal" class="overlay-modal">
         <div class="modal-card">
             <div class="emoji">🎉</div>
@@ -416,6 +425,15 @@
     </div>
 
     <script>
+        // --- 인쇄 시 글자 길이에 따른 폰트 사이즈 계산 ---
+        function getFontSize(text, defaultSize) {
+            if (!text) return defaultSize;
+            let len = text.length;
+            if (len >= 15) return "9.5px";
+            if (len > 8) return "11.5px";
+            return defaultSize;
+        }
+
         // --- 데이터 관리 (다중 단어장 시스템) ---
         let appData = []; 
         let currentDeckIndex = -1;
@@ -634,46 +652,53 @@
             appData.push(newDeck);
         }
 
-        // 전체 단어장 통합 인쇄
-        function printAllDecks() {
+        // --- 전체 단어장 통합 인쇄 ---
+        function openAllPdfModal() { document.getElementById('all-pdf-modal').classList.add('visible'); }
+        function closeAllPdfModal() { document.getElementById('all-pdf-modal').classList.remove('visible'); }
+        function executeAllPrint(mode) { closeAllPdfModal(); printAllDecks(mode); }
+
+        function printAllDecks(mode = 'all') {
             if (appData.length === 0) {
                 alert("인쇄할 단어장이 없습니다.");
                 return;
             }
             
+            let titleText = `🌸 전체 단어장 통합 인쇄 🌸${mode === 'fav' ? ' (즐겨찾기)' : ''}`;
+
             let printHtml = `
             <html><head><title>통합 단어장 인쇄</title>
             <style>
                 @page { size: A4; margin: 15mm; }
-                body { font-family: 'Malgun Gothic', sans-serif; font-size: 11px; margin: 0; color: #1e293b; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                body { font-family: 'Malgun Gothic', sans-serif; margin: 0; color: #1e293b; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                 table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 20px; page-break-after: auto; }
                 th { font-size: 18px; color: #FF5C8D; border: none; border-bottom: 2px solid #FF5C8D; padding-bottom: 10px; margin-bottom: 10px; }
-                th, td { border: 1px solid #cbd5e1; padding: 6px 8px; vertical-align: middle; word-break: keep-all; }
-                .jp { font-size: 12px; font-weight: bold; font-family: 'Meiryo', sans-serif; width: 20%; background-color: #f8fafc !important; }
+                th, td { border: 1px solid #cbd5e1; padding: 6px 8px; vertical-align: middle; word-break: break-word; }
+                .jp { font-weight: bold; font-family: 'Meiryo', sans-serif; width: 20%; background-color: #f8fafc !important; }
                 .kr { width: 30%; }
-                .highlight-star { background-color: #fef08a !important; padding: 2px 4px; border-radius: 4px; }
+                .highlight-star { background-color: #fef08a !important; padding: 2px 4px; border-radius: 4px; display: inline-block; white-space: nowrap; }
                 
                 /* 메모와 이미지가 잘리지 않고 테이블 아래로 내려가도록 강력하게 분리 */
                 .memo-section { display: block; clear: both; margin-top: 30px; padding: 15px; border-top: 2px dashed #cbd5e1; background: #fff !important; }
                 .memo-section * { max-width: 100%; word-break: break-all; }
                 .memo-section h3 { margin: 0 0 10px 0; color: #FF5C8D; font-size: 14px; page-break-after: avoid; }
-                
                 .memo-deck-title { font-size: 13px; font-weight: bold; color: #1e293b; margin: 25px 0 5px 0; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; page-break-after: avoid; }
                 
-                /* 이미지가 정상적으로 출력되도록 블록 및 중앙정렬 처리 */
-                .img-wrapper { display: block !important; text-align: center; margin: 15px auto; border: none !important; page-break-inside: avoid; }
-                .img-wrapper img { max-width: 100% !important; height: auto !important; display: inline-block; }
+                /* 사진이 무조건 왼쪽 정렬 되도록 수정 (좌측으로 붙음) */
+                .img-wrapper { display: block !important; margin: 15px 0 !important; text-align: left; border: none !important; page-break-inside: avoid; }
+                .img-wrapper img { max-width: 100% !important; height: auto !important; display: block; margin: 0; }
                 .resize-handle, .delete-img-btn, .reorder-handle { display: none !important; }
             </style>
-            </head><body>
-            <table><thead><tr><th colspan="4">🌸 전체 단어장 통합 인쇄 🌸</th></tr></thead><tbody>`;
+            </head><body>`;
 
             let allWords = [];
             let memos = [];
 
             appData.forEach(deck => {
                 if (deck.words) {
-                    const mappedWords = deck.words.map(w => ({...w, isStar: deck.stars.includes(w.id)}));
+                    let mappedWords = deck.words.map(w => ({...w, isStar: deck.stars.includes(w.id)}));
+                    if (mode === 'fav') {
+                        mappedWords = mappedWords.filter(w => w.isStar);
+                    }
                     allWords = allWords.concat(mappedWords);
                 }
                 if (deck.memo && deck.memo.trim() !== '') {
@@ -682,26 +707,53 @@
             });
 
             if(allWords.length === 0) { 
+                printHtml += `<table><thead><tr><th colspan="4">${titleText}</th></tr></thead><tbody>`;
                 printHtml += `<tr><td colspan="4" style="text-align:center;">조건에 해당하는 단어가 없습니다.</td></tr>`; 
+                printHtml += `</tbody></table>`;
             } else {
-                for (let i = 0; i < allWords.length; i += 2) {
-                    let w1 = allWords[i]; let w2 = allWords[i + 1];
-                    printHtml += `<tr>`;
-                    if (w1) { 
-                        printHtml += `<td class="jp"><span class="${w1.isStar?'highlight-star':''}">${w1.jp}${w1.isStar?' ⭐':''}</span></td><td class="kr">${w1.kr}</td>`; 
-                    } else { 
-                        printHtml += `<td class="jp"></td><td class="kr"></td>`; 
+                const PAGE_SIZE = 56;
+                const ROWS_PER_PAGE = 28;
+                let pagesCount = Math.ceil(allWords.length / PAGE_SIZE);
+                
+                for (let p = 0; p < pagesCount; p++) {
+                    printHtml += `<table><thead><tr><th colspan="4">${titleText} ${pagesCount > 1 ? `(${p+1}/${pagesCount})` : ''}</th></tr></thead><tbody>`;
+                    let pageData = allWords.slice(p * PAGE_SIZE, (p + 1) * PAGE_SIZE);
+                    
+                    let maxRows = ROWS_PER_PAGE;
+                    let rightOffset = ROWS_PER_PAGE;
+
+                    if (p === pagesCount - 1 && pageData.length < PAGE_SIZE) {
+                        maxRows = Math.ceil(pageData.length / 2);
+                        rightOffset = maxRows;
                     }
-                    if (w2) { 
-                        printHtml += `<td class="jp"><span class="${w2.isStar?'highlight-star':''}">${w2.jp}${w2.isStar?' ⭐':''}</span></td><td class="kr">${w2.kr}</td>`; 
-                    } else { 
-                        printHtml += `<td class="jp"></td><td class="kr"></td>`; 
+                    
+                    for (let r = 0; r < maxRows; r++) {
+                        let w1 = pageData[r];
+                        let w2 = pageData[r + rightOffset];
+                        
+                        printHtml += `<tr>`;
+                        if (w1) { 
+                            let jpSize = getFontSize(w1.jp, "13px");
+                            let krSize = getFontSize(w1.kr, "12px");
+                            printHtml += `<td class="jp" style="font-size:${jpSize};"><span class="${w1.isStar?'highlight-star':''}">${w1.jp}${w1.isStar?' ⭐':''}</span></td><td class="kr" style="font-size:${krSize};">${w1.kr}</td>`; 
+                        } else { 
+                            printHtml += `<td class="jp"></td><td class="kr"></td>`; 
+                        }
+                        
+                        if (w2) { 
+                            let jpSize = getFontSize(w2.jp, "13px");
+                            let krSize = getFontSize(w2.kr, "12px");
+                            printHtml += `<td class="jp" style="font-size:${jpSize};"><span class="${w2.isStar?'highlight-star':''}">${w2.jp}${w2.isStar?' ⭐':''}</span></td><td class="kr" style="font-size:${krSize};">${w2.kr}</td>`; 
+                        } else { 
+                            printHtml += `<td class="jp"></td><td class="kr"></td>`; 
+                        }
+                        printHtml += `</tr>`;
                     }
-                    printHtml += `</tr>`;
+                    printHtml += `</tbody></table>`;
                 }
             }
-            printHtml += `</tbody></table><div style="clear:both;"></div>`;
 
+            printHtml += `<div style="clear:both;"></div>`;
             if (memos.length > 0) { 
                 printHtml += `<div class="memo-section"><h3>📝 통합 요약 메모</h3>`;
                 memos.forEach(m => {
@@ -714,7 +766,6 @@
             
             const printWin = window.open('', '_blank');
             printWin.document.open(); printWin.document.write(printHtml); printWin.document.close();
-            // 사진 로딩 시간을 주기 위해 인쇄창 호출 딜레이를 1.5초로 연장
             setTimeout(() => { printWin.focus(); printWin.print(); }, 1500);
         }
 
@@ -1058,7 +1109,7 @@
             editor.addEventListener('dragstart', e => e.preventDefault());
         });
 
-        // --- 단일 PDF 출력 (잘림 방지 및 사진 오류 수정 반영) ---
+        // --- 단일 PDF 출력 (잘림 방지 및 세로(위->아래) 렌더링 적용) ---
         function openPdfModal() { document.getElementById('pdf-modal').classList.add('visible'); }
         function closePdfModal() { document.getElementById('pdf-modal').classList.remove('visible'); }
         function executePrint(mode) { closePdfModal(); exportPDF(mode); }
@@ -1071,45 +1122,96 @@
             <html><head><title>단어장 인쇄</title>
             <style>
                 @page { size: A4; margin: 15mm; }
-                body { font-family: 'Malgun Gothic', sans-serif; font-size: 11px; margin: 0; color: #1e293b; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                body { font-family: 'Malgun Gothic', sans-serif; margin: 0; color: #1e293b; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                 table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 20px; page-break-after: auto; }
                 th { font-size: 18px; color: #FF5C8D; border: none; border-bottom: 2px solid #FF5C8D; padding-bottom: 10px; margin-bottom: 10px; }
-                th, td { border: 1px solid #cbd5e1; padding: 6px 8px; vertical-align: middle; word-break: keep-all; }
-                .jp { font-size: 12px; font-weight: bold; font-family: 'Meiryo', sans-serif; width: 20%; background-color: #f8fafc !important; }
+                th, td { border: 1px solid #cbd5e1; padding: 6px 8px; vertical-align: middle; word-break: break-word; }
+                .jp { font-weight: bold; font-family: 'Meiryo', sans-serif; width: 20%; background-color: #f8fafc !important; }
                 .kr { width: 30%; }
-                .highlight-star { background-color: #fef08a !important; padding: 2px 4px; border-radius: 4px; }
+                .highlight-star { background-color: #fef08a !important; padding: 2px 4px; border-radius: 4px; display: inline-block; white-space: nowrap; }
                 
                 /* 페이지 잘림 방지 및 메모 분리용 스타일 */
                 .memo-section { display: block; clear: both; margin-top: 30px; padding: 15px; border-top: 2px dashed #cbd5e1; background: #fff !important; }
                 .memo-section * { max-width: 100%; word-break: break-all; }
                 .memo-section h3 { margin: 0 0 10px 0; color: #FF5C8D; font-size: 14px; page-break-after: avoid; }
                 
-                /* 이미지가 도중에 잘리지 않고 블록으로 나오게 설정 */
-                .img-wrapper { display: block !important; text-align: center; margin: 15px auto; border: none !important; page-break-inside: avoid; }
-                .img-wrapper img { max-width: 100% !important; height: auto !important; display: inline-block; }
+                /* 사진이 무조건 왼쪽 정렬 되도록 수정 (좌측으로 붙음) */
+                .img-wrapper { display: block !important; margin: 15px 0 !important; text-align: left; border: none !important; page-break-inside: avoid; }
+                .img-wrapper img { max-width: 100% !important; height: auto !important; display: block; margin: 0; }
                 .resize-handle, .delete-img-btn, .reorder-handle { display: none !important; }
             </style>
-            </head><body>
-            <table><thead><tr><th colspan="4">${titleText}</th></tr></thead><tbody>`;
+            </head><body>`;
 
-            if(targetData.length === 0) { printHtml += `<tr><td colspan="4" style="text-align:center;">조건에 해당하는 단어가 없습니다.</td></tr>`; } 
+            if(targetData.length === 0) { 
+                printHtml += `<table><thead><tr><th colspan="4">${titleText}</th></tr></thead><tbody>`;
+                printHtml += `<tr><td colspan="4" style="text-align:center;">조건에 해당하는 단어가 없습니다.</td></tr>`; 
+                printHtml += `</tbody></table>`;
+            } 
             else {
-                for (let i = 0; i < targetData.length; i += 2) {
-                    let w1 = targetData[i]; let w2 = targetData[i + 1];
-                    printHtml += `<tr>`;
-                    if (w1) { let isS = deck.stars.includes(w1.id); printHtml += `<td class="jp"><span class="${isS?'highlight-star':''}">${w1.jp}${isS?' ⭐':''}</span></td><td class="kr">${w1.kr}</td>`; } else { printHtml += `<td class="jp"></td><td class="kr"></td>`; }
-                    if (w2) { let isS = deck.stars.includes(w2.id); printHtml += `<td class="jp"><span class="${isS?'highlight-star':''}">${w2.jp}${isS?' ⭐':''}</span></td><td class="kr">${w2.kr}</td>`; } else { printHtml += `<td class="jp"></td><td class="kr"></td>`; }
-                    printHtml += `</tr>`;
+                const PAGE_SIZE = 56;
+                const ROWS_PER_PAGE = 28;
+                let pagesCount = Math.ceil(targetData.length / PAGE_SIZE);
+                
+                for (let p = 0; p < pagesCount; p++) {
+                    printHtml += `<table><thead><tr><th colspan="4">${titleText} ${pagesCount > 1 ? `(${p+1}/${pagesCount})` : ''}</th></tr></thead><tbody>`;
+                    let pageData = targetData.slice(p * PAGE_SIZE, (p + 1) * PAGE_SIZE);
+                    
+                    let maxRows = ROWS_PER_PAGE;
+                    let rightOffset = ROWS_PER_PAGE;
+
+                    if (p === pagesCount - 1 && pageData.length < PAGE_SIZE) {
+                        maxRows = Math.ceil(pageData.length / 2);
+                        rightOffset = maxRows;
+                    }
+                    
+                    for (let r = 0; r < maxRows; r++) {
+                        let w1 = pageData[r];
+                        let w2 = pageData[r + rightOffset];
+                        
+                        printHtml += `<tr>`;
+                        if (w1) { 
+                            let jpSize = getFontSize(w1.jp, "13px");
+                            let krSize = getFontSize(w1.kr, "12px");
+                            let isS = deck.stars.includes(w1.id); 
+                            printHtml += `<td class="jp" style="font-size:${jpSize};"><span class="${isS?'highlight-star':''}">${w1.jp}${isS?' ⭐':''}</span></td><td class="kr" style="font-size:${krSize};">${w1.kr}</td>`; 
+                        } else { 
+                            printHtml += `<td class="jp"></td><td class="kr"></td>`; 
+                        }
+                        
+                        if (w2) { 
+                            let jpSize = getFontSize(w2.jp, "13px");
+                            let krSize = getFontSize(w2.kr, "12px");
+                            let isS = deck.stars.includes(w2.id); 
+                            printHtml += `<td class="jp" style="font-size:${jpSize};"><span class="${isS?'highlight-star':''}">${w2.jp}${isS?' ⭐':''}</span></td><td class="kr" style="font-size:${krSize};">${w2.kr}</td>`; 
+                        } else { 
+                            printHtml += `<td class="jp"></td><td class="kr"></td>`; 
+                        }
+                        printHtml += `</tr>`;
+                    }
+                    printHtml += `</tbody></table>`;
                 }
             }
-            printHtml += `</tbody></table><div style="clear:both;"></div>`;
+            printHtml += `<div style="clear:both;"></div>`;
             if (deck.memo && deck.memo.trim() !== '') { printHtml += `<div class="memo-section"><h3>📝 요약 메모</h3><div>${deck.memo}</div></div>`; }
             printHtml += `</body></html>`;
             
             const printWin = window.open('', '_blank');
             printWin.document.open(); printWin.document.write(printHtml); printWin.document.close();
-            // 사진 로딩 시간 보장을 위해 대기 시간을 1.5초(1500ms)로 연장
             setTimeout(() => { printWin.focus(); printWin.print(); }, 1500);
+        }
+
+        // --- 학습 카드 모드에서의 글자 길이에 따른 폰트 크기 자동 조절 ---
+        function adjustFontSize(element, text, isFront) {
+            const len = text.length;
+            if (isFront) {
+                if (len >= 15) element.style.fontSize = "1.4rem";
+                else if (len > 8) element.style.fontSize = "1.9rem";
+                else element.style.fontSize = "2.5rem";
+            } else {
+                if (len >= 15) element.style.fontSize = "1.2rem";
+                else if (len > 8) element.style.fontSize = "1.5rem";
+                else element.style.fontSize = "1.8rem";
+            }
         }
 
         // --- 게임 진행 ---
@@ -1133,9 +1235,13 @@
             if (isKrFirst) {
                 frontEl.innerText = card.kr; frontEl.style.fontFamily = "sans-serif";
                 backEl.innerText = card.jp; backEl.style.fontFamily = "'Meiryo', sans-serif";
+                adjustFontSize(frontEl, card.kr, true);
+                adjustFontSize(backEl, card.jp, false);
             } else {
                 frontEl.innerText = card.jp; frontEl.style.fontFamily = "'Meiryo', sans-serif";
                 backEl.innerText = card.kr; backEl.style.fontFamily = "sans-serif";
+                adjustFontSize(frontEl, card.jp, true);
+                adjustFontSize(backEl, card.kr, false);
             }
             
             const isS = deck.stars.includes(card.id);
