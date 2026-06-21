@@ -57,16 +57,19 @@
         .deck-card-header { display: flex; justify-content: space-between; align-items: center; }
         .deck-title { font-size: 1.2rem; font-weight: 800; color: #1e293b; margin: 0; display:flex; align-items:center; gap:8px;}
         .deck-info { font-size: 0.9rem; color: #64748b; margin: 0; }
-        .deck-actions { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; }
-        .btn-open { background: var(--primary); color: white; border: none; border-radius: 8px; padding: 10px; font-weight: bold; font-size: 0.95rem; cursor: pointer; }
-        .btn-icon { background: #f1f5f9; color: #475569; border: none; border-radius: 8px; padding: 10px; width: 40px; display:flex; justify-content:center; align-items:center; font-size: 1.1rem; cursor: pointer; }
+        
+        /* 덱 액션 버튼 영역 */
+        .deck-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .btn-open { flex: 1; min-width: 80px; background: var(--primary); color: white; border: none; border-radius: 8px; padding: 10px; font-weight: bold; font-size: 0.95rem; cursor: pointer; text-align: center;}
+        .btn-icon { background: #f1f5f9; color: #475569; border: none; border-radius: 8px; width: 40px; height: 40px; display:flex; justify-content:center; align-items:center; font-size: 1.1rem; cursor: pointer; flex-shrink: 0; padding: 0; }
         .btn-icon.danger { color: #DC2626; background: #FEE2E2; }
+        .btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
         
         .tool-btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .tool-btn {
             background: white; border: 1px solid #e2e8f0; border-radius: 12px;
-            padding: 16px 10px; font-weight: 800; font-size: 0.95rem; color: #334155;
-            cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px;
+            padding: 16px 10px; font-weight: 800; font-size: 0.9rem; color: #334155;
+            cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px; text-align: center;
         }
         .tool-btn:active { background: #f1f5f9; transform: scale(0.98); }
         .tool-btn.highlight { border-color: var(--primary); color: var(--primary); background: #FFF0F5; }
@@ -224,8 +227,10 @@
         <div class="content-area">
             
             <div class="tool-btn-group" style="margin-bottom: 20px;">
-                <button class="tool-btn highlight" onclick="createNewDeck()">➕ 새 단어장 만들기</button>
-                <button class="tool-btn" onclick="document.getElementById('import-deck-upload').click()">📂 백업 파일 불러오기</button>
+                <button class="tool-btn highlight" onclick="createNewDeck()">➕ 새 단어장</button>
+                <button class="tool-btn" onclick="document.getElementById('import-deck-upload').click()">📂 백업 불러오기</button>
+                <button class="tool-btn highlight" onclick="exportAllDecks()" style="background:#FFFBEB; border-color:#FDE68A; color:#D97706;">📦 통합 백업 다운</button>
+                <button class="tool-btn highlight" onclick="printAllDecks()" style="background:#ECFDF5; border-color:#A7F3D0; color:#059669;">🖨️ 통합 인쇄</button>
                 <input type="file" id="import-deck-upload" accept=".json" style="display: none;" onchange="importDeck(event)">
             </div>
 
@@ -276,7 +281,7 @@
             
             <div class="tool-btn-group" style="margin-top: 15px;">
                 <button class="tool-btn" onclick="openAddWordModal()">➕ 대량 단어 추가</button>
-                <button class="tool-btn" onclick="openPdfModal()">📄 PDF 인쇄</button>
+                <button class="tool-btn" onclick="openPdfModal()">📄 단일 인쇄</button>
             </div>
             
             <div style="margin-top: 15px;">
@@ -325,7 +330,7 @@
         </div>
     </div>
 
-    <!-- 각종 모달들 (기존과 동일하지만 JS에서 현재 덱 참조하도록 변경) -->
+    <!-- 각종 모달들 -->
     <div id="single-edit-modal" class="overlay-modal">
         <div class="modal-card" style="padding: 25px 20px;">
             <h2 style="font-size: 1.3rem; margin-bottom: 20px;">단어 수정</h2>
@@ -384,7 +389,7 @@
 
     <div id="pdf-modal" class="overlay-modal">
         <div class="modal-card">
-            <h2 style="font-size: 1.4rem; margin-bottom: 10px;">📄 PDF 인쇄</h2>
+            <h2 style="font-size: 1.4rem; margin-bottom: 10px;">📄 현재 단어장 인쇄</h2>
             <button class="modal-action-btn primary" onclick="executePrint('all')">📚 전체 단어 + 메모</button>
             <button class="modal-action-btn" style="background:#FFFBEB; color:#D97706; border:1px solid #FDE68A;" onclick="executePrint('fav')">⭐ 즐겨찾기만 + 메모</button>
             <button class="modal-action-btn secondary" style="margin-top:5px;" onclick="closePdfModal()">취소</button>
@@ -412,10 +417,9 @@
 
     <script>
         // --- 데이터 관리 (다중 단어장 시스템) ---
-        let appData = []; // [{ id, name, words, stars, memo, session }]
+        let appData = []; 
         let currentDeckIndex = -1;
 
-        // 기존(단일 파일) 데이터 마이그레이션 로직
         function migrateLegacyData() {
             let oldWords = localStorage.getItem('jpDataFlat');
             if (oldWords) {
@@ -431,7 +435,6 @@
                     };
                     appData.push(deck);
                 }
-                // 기존 키 삭제하여 중복 방지
                 localStorage.removeItem('jpDataFlat');
                 localStorage.removeItem('jpStarsFlat');
                 localStorage.removeItem('jpMemoRich');
@@ -445,7 +448,7 @@
             if (saved) {
                 appData = JSON.parse(saved);
             }
-            migrateLegacyData(); // 구버전 접속 시 변환
+            migrateLegacyData(); 
             renderHomeUI();
         }
 
@@ -502,7 +505,9 @@
                     </div>
                     <div class="deck-actions">
                         <button class="btn-open" onclick="openDeck(${index})">입장하기</button>
-                        <button class="btn-icon" onclick="exportDeck(${index})" title="저장/백업">💾</button>
+                        <button class="btn-icon" onclick="moveDeck(${index}, -1)" ${index === 0 ? 'disabled' : ''} title="위로 이동">🔼</button>
+                        <button class="btn-icon" onclick="moveDeck(${index}, 1)" ${index === appData.length - 1 ? 'disabled' : ''} title="아래로 이동">🔽</button>
+                        <button class="btn-icon" onclick="exportDeck(${index})" title="현재 단일 단어장 백업">💾</button>
                         <button class="btn-icon danger" onclick="deleteDeck(${index})" title="삭제">🗑</button>
                     </div>
                 `;
@@ -521,7 +526,7 @@
                     memo: '',
                     session: null
                 };
-                appData.unshift(newDeck); // 맨 위에 추가
+                appData.unshift(newDeck); 
                 saveAppData();
                 renderHomeUI();
             }
@@ -545,7 +550,15 @@
             }
         }
 
-        // 특정 단어장 JSON 저장
+        function moveDeck(index, direction) {
+            if (index + direction < 0 || index + direction >= appData.length) return;
+            const temp = appData[index];
+            appData[index] = appData[index + direction];
+            appData[index + direction] = temp;
+            saveAppData();
+            renderHomeUI();
+        }
+
         function exportDeck(index) {
             const deck = appData[index];
             const dataStr = JSON.stringify(deck, null, 2);
@@ -554,12 +567,27 @@
             const a = document.createElement('a');
             a.href = url;
             const dateStr = new Date().toISOString().slice(0, 10);
-            a.download = `JPMaster_${deck.name}_${dateStr}.json`;
+            a.download = `JPMaster_Single_${deck.name}_${dateStr}.json`;
             a.click();
             URL.revokeObjectURL(url);
         }
 
-        // 단어장 JSON 불러오기 (새 덱으로 추가)
+        function exportAllDecks() {
+            if (appData.length === 0) {
+                alert("백업할 단어장이 없습니다.");
+                return;
+            }
+            const dataStr = JSON.stringify(appData, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const dateStr = new Date().toISOString().slice(0, 10);
+            a.download = `JPMaster_AllDecks_${dateStr}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
         function importDeck(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -568,35 +596,126 @@
             reader.onload = function(e) {
                 try {
                     const data = JSON.parse(e.target.result);
-                    // 유효성 검사 (과거 버전 파일이거나 새로운 형식의 덱 파일이거나)
-                    let newDeck = {
-                        id: 'deck_' + Date.now(),
-                        name: data.name ? data.name : (file.name.replace('.json', '') || '불러온 단어장'),
-                        words: Array.isArray(data.words) ? data.words : [],
-                        stars: Array.isArray(data.stars) ? data.stars : [],
-                        memo: data.memo || '',
-                        session: null
-                    };
-
-                    // ID 충돌 방지 재발급
-                    const idMap = {};
-                    newDeck.words = newDeck.words.map((w, idx) => {
-                        const newId = 'w_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 5);
-                        idMap[w.id] = newId;
-                        return { jp: w.jp, kr: w.kr, id: newId };
-                    });
-                    newDeck.stars = newDeck.stars.map(oldId => idMap[oldId]).filter(Boolean);
-
-                    appData.unshift(newDeck);
+                    if (Array.isArray(data)) {
+                        data.forEach(deckData => { addImportedDeck(deckData, deckData.name || '불러온 단어장'); });
+                        alert(`${data.length}개의 단어장을 성공적으로 불러왔습니다!`);
+                    } else {
+                        addImportedDeck(data, data.name ? data.name : (file.name.replace('.json', '') || '불러온 단어장'));
+                        alert("단어장을 성공적으로 불러왔습니다!");
+                    }
                     saveAppData();
                     renderHomeUI();
-                    alert("성공적으로 단어장을 불러왔습니다!");
                 } catch (err) {
                     alert("파일을 읽는 중 오류가 발생했습니다. 올바른 형식인지 확인해주세요.");
                 }
             };
             reader.readAsText(file);
             event.target.value = ''; 
+        }
+
+        function addImportedDeck(data, defaultName) {
+            let newDeck = {
+                id: 'deck_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                name: defaultName,
+                words: Array.isArray(data.words) ? data.words : [],
+                stars: Array.isArray(data.stars) ? data.stars : [],
+                memo: data.memo || '',
+                session: null
+            };
+
+            const idMap = {};
+            newDeck.words = newDeck.words.map((w, idx) => {
+                const newId = 'w_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 5);
+                idMap[w.id] = newId;
+                return { jp: w.jp, kr: w.kr, id: newId };
+            });
+            newDeck.stars = newDeck.stars.map(oldId => idMap[oldId]).filter(Boolean);
+
+            appData.push(newDeck);
+        }
+
+        // 전체 단어장 통합 인쇄
+        function printAllDecks() {
+            if (appData.length === 0) {
+                alert("인쇄할 단어장이 없습니다.");
+                return;
+            }
+            
+            let printHtml = `
+            <html><head><title>통합 단어장 인쇄</title>
+            <style>
+                @page { size: A4; margin: 15mm; }
+                body { font-family: 'Malgun Gothic', sans-serif; font-size: 11px; margin: 0; color: #1e293b; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 20px; page-break-after: auto; }
+                th { font-size: 18px; color: #FF5C8D; border: none; border-bottom: 2px solid #FF5C8D; padding-bottom: 10px; margin-bottom: 10px; }
+                th, td { border: 1px solid #cbd5e1; padding: 6px 8px; vertical-align: middle; word-break: keep-all; }
+                .jp { font-size: 12px; font-weight: bold; font-family: 'Meiryo', sans-serif; width: 20%; background-color: #f8fafc !important; }
+                .kr { width: 30%; }
+                .highlight-star { background-color: #fef08a !important; padding: 2px 4px; border-radius: 4px; }
+                
+                /* 메모와 이미지가 잘리지 않고 테이블 아래로 내려가도록 강력하게 분리 */
+                .memo-section { display: block; clear: both; margin-top: 30px; padding: 15px; border-top: 2px dashed #cbd5e1; background: #fff !important; }
+                .memo-section * { max-width: 100%; word-break: break-all; }
+                .memo-section h3 { margin: 0 0 10px 0; color: #FF5C8D; font-size: 14px; page-break-after: avoid; }
+                
+                .memo-deck-title { font-size: 13px; font-weight: bold; color: #1e293b; margin: 25px 0 5px 0; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; page-break-after: avoid; }
+                
+                /* 이미지가 정상적으로 출력되도록 블록 및 중앙정렬 처리 */
+                .img-wrapper { display: block !important; text-align: center; margin: 15px auto; border: none !important; page-break-inside: avoid; }
+                .img-wrapper img { max-width: 100% !important; height: auto !important; display: inline-block; }
+                .resize-handle, .delete-img-btn, .reorder-handle { display: none !important; }
+            </style>
+            </head><body>
+            <table><thead><tr><th colspan="4">🌸 전체 단어장 통합 인쇄 🌸</th></tr></thead><tbody>`;
+
+            let allWords = [];
+            let memos = [];
+
+            appData.forEach(deck => {
+                if (deck.words) {
+                    const mappedWords = deck.words.map(w => ({...w, isStar: deck.stars.includes(w.id)}));
+                    allWords = allWords.concat(mappedWords);
+                }
+                if (deck.memo && deck.memo.trim() !== '') {
+                    memos.push({ name: deck.name, memo: deck.memo });
+                }
+            });
+
+            if(allWords.length === 0) { 
+                printHtml += `<tr><td colspan="4" style="text-align:center;">조건에 해당하는 단어가 없습니다.</td></tr>`; 
+            } else {
+                for (let i = 0; i < allWords.length; i += 2) {
+                    let w1 = allWords[i]; let w2 = allWords[i + 1];
+                    printHtml += `<tr>`;
+                    if (w1) { 
+                        printHtml += `<td class="jp"><span class="${w1.isStar?'highlight-star':''}">${w1.jp}${w1.isStar?' ⭐':''}</span></td><td class="kr">${w1.kr}</td>`; 
+                    } else { 
+                        printHtml += `<td class="jp"></td><td class="kr"></td>`; 
+                    }
+                    if (w2) { 
+                        printHtml += `<td class="jp"><span class="${w2.isStar?'highlight-star':''}">${w2.jp}${w2.isStar?' ⭐':''}</span></td><td class="kr">${w2.kr}</td>`; 
+                    } else { 
+                        printHtml += `<td class="jp"></td><td class="kr"></td>`; 
+                    }
+                    printHtml += `</tr>`;
+                }
+            }
+            printHtml += `</tbody></table><div style="clear:both;"></div>`;
+
+            if (memos.length > 0) { 
+                printHtml += `<div class="memo-section"><h3>📝 통합 요약 메모</h3>`;
+                memos.forEach(m => {
+                    printHtml += `<div class="memo-deck-title">[${m.name}] 단어장 메모</div><div>${m.memo}</div>`;
+                });
+                printHtml += `</div>`;
+            }
+
+            printHtml += `</body></html>`;
+            
+            const printWin = window.open('', '_blank');
+            printWin.document.open(); printWin.document.write(printHtml); printWin.document.close();
+            // 사진 로딩 시간을 주기 위해 인쇄창 호출 딜레이를 1.5초로 연장
+            setTimeout(() => { printWin.focus(); printWin.print(); }, 1500);
         }
 
         // --- 로비 (선택한 덱 내부) ---
@@ -749,11 +868,13 @@
             const currentCard = activeQueue[0];
             document.getElementById('single-edit-jp').value = currentCard.jp;
             document.getElementById('single-edit-kr').value = currentCard.kr;
-            singleEditModal.classList.add('visible');
+            document.getElementById('single-edit-modal').classList.add('visible');
             document.getElementById('single-edit-jp').focus();
         }
 
-        function closeSingleEditModal() { singleEditModal.classList.remove('visible'); }
+        function closeSingleEditModal() { 
+            document.getElementById('single-edit-modal').classList.remove('visible'); 
+        }
 
         function saveSingleEdit() {
             if (activeQueue.length === 0) return;
@@ -800,11 +921,13 @@
                     container.appendChild(row);
                 });
             }
+            const editModal = document.getElementById('edit-modal');
             editModal.style.display = 'flex';
             setTimeout(() => editModal.classList.add('visible'), 10);
         }
 
         function closeEditModal() {
+            const editModal = document.getElementById('edit-modal');
             editModal.classList.remove('visible');
             setTimeout(() => editModal.style.display = 'none', 300);
         }
@@ -845,18 +968,20 @@
             const validIds = deck.words.map(w => w.id);
             deck.stars = deck.stars.filter(id => validIds.includes(id));
             
-            clearSessionState(); // 구조가 바뀌었으므로 세션 초기화
+            clearSessionState(); 
             alert("변경사항이 성공적으로 저장되었습니다!");
             closeEditModal();
         }
 
         function openAddWordModal() {
             document.getElementById('add-word-input').value = '';
+            const addWordModal = document.getElementById('add-word-modal');
             addWordModal.style.display = 'flex';
             setTimeout(() => addWordModal.classList.add('visible'), 10);
         }
 
         function closeAddWordModal() {
+            const addWordModal = document.getElementById('add-word-modal');
             addWordModal.classList.remove('visible');
             setTimeout(() => addWordModal.style.display = 'none', 300);
         }
@@ -885,7 +1010,7 @@
             }
         }
 
-        // --- 이미지/에디터 처리 (기존과 동일) ---
+        // --- 이미지/에디터 처리 ---
         function handleImageFile(file) {
             if (file.size > 10 * 1024 * 1024) { alert("이미지 용량이 너무 큽니다."); return; }
             const reader = new FileReader();
@@ -933,9 +1058,9 @@
             editor.addEventListener('dragstart', e => e.preventDefault());
         });
 
-        // --- PDF 출력 ---
-        function openPdfModal() { pdfModal.classList.add('visible'); }
-        function closePdfModal() { pdfModal.classList.remove('visible'); }
+        // --- 단일 PDF 출력 (잘림 방지 및 사진 오류 수정 반영) ---
+        function openPdfModal() { document.getElementById('pdf-modal').classList.add('visible'); }
+        function closePdfModal() { document.getElementById('pdf-modal').classList.remove('visible'); }
         function executePrint(mode) { closePdfModal(); exportPDF(mode); }
         function exportPDF(mode = 'all') {
             const deck = getDeck();
@@ -947,16 +1072,21 @@
             <style>
                 @page { size: A4; margin: 15mm; }
                 body { font-family: 'Malgun Gothic', sans-serif; font-size: 11px; margin: 0; color: #1e293b; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-                table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 20px;}
+                table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 20px; page-break-after: auto; }
                 th { font-size: 18px; color: #FF5C8D; border: none; border-bottom: 2px solid #FF5C8D; padding-bottom: 10px; margin-bottom: 10px; }
-                th, td { border: 1px solid #cbd5e1; padding: 6px 8px; vertical-align: middle; }
+                th, td { border: 1px solid #cbd5e1; padding: 6px 8px; vertical-align: middle; word-break: keep-all; }
                 .jp { font-size: 12px; font-weight: bold; font-family: 'Meiryo', sans-serif; width: 20%; background-color: #f8fafc !important; }
                 .kr { width: 30%; }
                 .highlight-star { background-color: #fef08a !important; padding: 2px 4px; border-radius: 4px; }
-                .memo-section { margin-top: 20px; padding: 15px; border: 2px dashed #cbd5e1; border-radius: 8px; background: #f8fafc !important; page-break-inside: avoid; }
-                .memo-section h3 { margin: 0 0 10px 0; color: #FF5C8D; font-size: 14px; }
-                .img-wrapper { border: none !important; display: inline-block; position: relative; }
-                .img-wrapper img { max-width: 100%; height: auto; }
+                
+                /* 페이지 잘림 방지 및 메모 분리용 스타일 */
+                .memo-section { display: block; clear: both; margin-top: 30px; padding: 15px; border-top: 2px dashed #cbd5e1; background: #fff !important; }
+                .memo-section * { max-width: 100%; word-break: break-all; }
+                .memo-section h3 { margin: 0 0 10px 0; color: #FF5C8D; font-size: 14px; page-break-after: avoid; }
+                
+                /* 이미지가 도중에 잘리지 않고 블록으로 나오게 설정 */
+                .img-wrapper { display: block !important; text-align: center; margin: 15px auto; border: none !important; page-break-inside: avoid; }
+                .img-wrapper img { max-width: 100% !important; height: auto !important; display: inline-block; }
                 .resize-handle, .delete-img-btn, .reorder-handle { display: none !important; }
             </style>
             </head><body>
@@ -972,13 +1102,14 @@
                     printHtml += `</tr>`;
                 }
             }
-            printHtml += `</tbody></table>`;
+            printHtml += `</tbody></table><div style="clear:both;"></div>`;
             if (deck.memo && deck.memo.trim() !== '') { printHtml += `<div class="memo-section"><h3>📝 요약 메모</h3><div>${deck.memo}</div></div>`; }
             printHtml += `</body></html>`;
             
             const printWin = window.open('', '_blank');
             printWin.document.open(); printWin.document.write(printHtml); printWin.document.close();
-            setTimeout(() => { printWin.focus(); printWin.print(); }, 500);
+            // 사진 로딩 시간 보장을 위해 대기 시간을 1.5초(1500ms)로 연장
+            setTimeout(() => { printWin.focus(); printWin.print(); }, 1500);
         }
 
         // --- 게임 진행 ---
@@ -1017,11 +1148,17 @@
 
         function showComplete() {
             document.getElementById('complete-msg').innerText = `총 ${totalCount}개의 단어를 완료했습니다! 🎓`;
-            completeModal.classList.add('visible');
+            document.getElementById('complete-modal').classList.add('visible');
         }
 
-        function openPauseModal() { saveSessionState(); pauseModal.classList.add('visible'); }
-        function closePauseModal() { pauseModal.classList.remove('visible'); }
+        function openPauseModal() { 
+            saveSessionState(); 
+            document.getElementById('pause-modal').classList.add('visible'); 
+        }
+        function closePauseModal() { 
+            document.getElementById('pause-modal').classList.remove('visible'); 
+        }
+        
         function markOk() { if (activeQueue.length === 0) return; activeQueue.shift(); saveSessionState(); updateProgress(); animateCardChange('ok'); }
         function markNo() { if (activeQueue.length === 0) return; activeQueue.push(activeQueue.shift()); saveSessionState(); animateCardChange('no'); }
 
@@ -1044,11 +1181,15 @@
         }
 
         function goBackAndClearSession() {
-            completeModal.classList.remove('visible');
+            document.getElementById('complete-modal').classList.remove('visible');
             clearSessionState();
             showPage('lobby-page');
         }
-        function goBackToLobby() { pauseModal.classList.remove('visible'); updateLobbyUI(); showPage('lobby-page'); }
+        function goBackToLobby() { 
+            document.getElementById('pause-modal').classList.remove('visible'); 
+            updateLobbyUI(); 
+            showPage('lobby-page'); 
+        }
 
         // --- 스와이프 로직 ---
         const cw = document.getElementById('cardWrapper');
