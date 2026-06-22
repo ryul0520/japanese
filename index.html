@@ -187,10 +187,17 @@
         
         .star-toggle { position: absolute; top: 20px; right: 20px; font-size: 2.2rem; color: #E2E8F0; z-index: 100; padding: 10px; cursor: pointer; }
         .star-toggle.active { color: var(--star-color); }
+        
+        /* 카드 에디트 & 카드 내 삭제 버튼 스타일 정의 */
         .edit-card-btn { position: absolute; top: 20px; left: 20px; font-size: 1.2rem; z-index: 100; padding: 10px; cursor: pointer; transition: transform 0.1s; }
         .edit-card-btn:active { transform: scale(0.9); }
         .card-front .edit-card-btn { color: #94A3B8; } 
         .card-back .edit-card-btn { color: #CBD5E1; opacity: 0.8; } 
+
+        .delete-card-btn { position: absolute; top: 20px; left: 65px; font-size: 1.2rem; z-index: 100; padding: 10px; cursor: pointer; transition: transform 0.1s; }
+        .delete-card-btn:active { transform: scale(0.9); }
+        .card-front .delete-card-btn { color: #EF5350; } 
+        .card-back .delete-card-btn { color: #EF5350; opacity: 0.8; }
 
         .swipe-hint { position: absolute; bottom: 100px; display: flex; gap: 30px; z-index: 10; pointer-events: none; }
         .hint-pill { display: flex; align-items: center; gap: 6px; background: white; border-radius: 20px; padding: 6px 14px; font-size: 0.8rem; font-weight: 700; color: #94a3b8; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
@@ -234,11 +241,20 @@
                 <input type="file" id="import-deck-upload" accept=".json" style="display: none;" onchange="importDeck(event)">
             </div>
 
-            <!-- 글로벌 전체 단어 학습 기능 UI 추가 -->
+            <!-- 글로벌 전체 단어 학습 기능 UI -->
             <div class="session-config" id="global-session-config" style="margin-bottom: 20px;">
                 <h3 style="margin: 0 0 10px 0; color: var(--primary); font-size: 1.1rem; display: flex; justify-content: center; align-items: center; gap: 6px;">
-                    <span>🌟</span> 전체 단어장 통합 학습
+                    <span>🌟</span> 선택 단어장 통합 학습
                 </h3>
+                
+                <!-- 학습할 단어장 동적 선택 체크박스 영역 -->
+                <div style="margin-bottom: 15px; text-align: left; background:#f8fafc; padding:12px; border-radius:10px; border:1px solid #e2e8f0;">
+                    <span style="font-weight: 700; color:#475569; font-size: 0.85rem; display: block; margin-bottom: 8px;">📚 대상 단어장 선택:</span>
+                    <div id="global-deck-checkboxes" style="display: flex; flex-direction: column; gap: 6px; max-height: 120px; overflow-y: auto; padding: 2px;">
+                        <!-- 체크박스 리스트 동적 렌더링 -->
+                    </div>
+                </div>
+
                 <div style="font-weight:700; color:#334155; font-size:1rem; margin-bottom:10px; text-align:center;">
                     🎯 통합 학습 목표: <span id="global-val-display" style="color:var(--primary)">전체</span>
                 </div>
@@ -260,7 +276,7 @@
                     <button class="modal-action-btn primary" style="margin-bottom:0; flex:1;" onclick="startGlobalRandomWords()">랜덤 학습</button>
                 </div>
                 
-                <button class="tool-btn highlight" style="width: 100%; margin-top: 10px; border-color: #FDE68A; background: #FFFBEB; color: #D97706;" onclick="startGlobalFavorites()">⭐ 전체 단어장 즐겨찾기만 복습</button>
+                <button class="tool-btn highlight" style="width: 100%; margin-top: 10px; border-color: #FDE68A; background: #FFFBEB; color: #D97706;" onclick="startGlobalFavorites()">⭐ 선택한 단어장 즐겨찾기만 복습</button>
                 
                 <button id="btn-global-continue" class="tool-btn full-width continue" onclick="resumeGlobalSession()" style="margin-top: 15px; display:none;">▶ 통합 이어서 학습하기 (0개 남음)</button>
             </div>
@@ -275,8 +291,12 @@
     <div id="lobby-page" class="page">
         <div class="header">
             <button onclick="goHome()" style="background:none; border:none; font-size:1.2rem; color:#64748B; padding:0; cursor:pointer; font-weight:bold;">← 뒤로</button>
-            <span id="current-deck-title" style="color:var(--primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:50%;">단어장</span>
-            <span id="total-stars" style="color:var(--star-color); background:#FFFBEB; padding:4px 10px; border-radius:20px; font-size:0.9rem;">⭐ 0</span>
+            <span id="current-deck-title" style="color:var(--primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:40%;">단어장</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <!-- 로비 전체화면 버튼 -->
+                <button onclick="toggleFullScreen()" style="background:none; border:none; font-size:1.3rem; color:#64748B; padding:0; cursor:pointer;" title="전체화면">⛶</button>
+                <span id="total-stars" style="color:var(--star-color); background:#FFFBEB; padding:4px 10px; border-radius:20px; font-size:0.9rem;">⭐ 0</span>
+            </div>
         </div>
         <div class="content-area">
             
@@ -310,13 +330,16 @@
                 <button class="tool-btn" onclick="openEditModal()">✏️ 전체 목록 수정</button>
             </div>
             
+            <!-- 단어 추가 & 인쇄 버튼 그룹 -->
             <div class="tool-btn-group" style="margin-top: 15px;">
                 <button class="tool-btn" onclick="openAddWordModal()">➕ 대량 단어 추가</button>
                 <button class="tool-btn" onclick="openPdfModal()">📄 단일 인쇄</button>
             </div>
-            
-            <div style="margin-top: 15px;">
-                <button class="tool-btn full-width" onclick="clearDeckData()" style="color:#DC2626;">🗑 단어장 비우기 (삭제)</button>
+
+            <!-- 쓰레기통 & 단어장 비우기 버튼을 2열 배치로 변경 -->
+            <div class="tool-btn-group" style="margin-top: 15px;">
+                <button class="tool-btn highlight" onclick="openDeckTrashModal()" style="background:#FEE2E2; border-color:#FCA5A5; color:#DC2626; padding: 16px 10px;">🗑️ 쓰레기통 (<span id="deck-trash-count">0</span>)</button>
+                <button class="tool-btn" onclick="clearDeckData()" style="color:#DC2626; padding: 16px 10px;">🗑️ 단어장 비우기</button>
             </div>
         </div>
     </div>
@@ -326,7 +349,11 @@
         <div class="header">
             <button onclick="openPauseModal()" style="background:none; border:none; font-size:1.4rem; color:#64748B; padding:0 10px;">⏸</button>
             <div id="stage-info" style="font-size:1rem;">단어 학습</div>
-            <span id="queue-count" style="color:var(--primary); font-variant-numeric: tabular-nums; font-size:0.9rem;">0 left</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <!-- 학습 화면 전체화면 버튼 -->
+                <button onclick="toggleFullScreen()" style="background:none; border:none; font-size:1.3rem; color:#64748B; padding:0; cursor:pointer;" title="전체화면">⛶</button>
+                <span id="queue-count" style="color:var(--primary); font-variant-numeric: tabular-nums; font-size:0.9rem;">0 left</span>
+            </div>
         </div>
         
         <div class="game-container" id="touchArea">
@@ -335,14 +362,18 @@
             
             <div class="card-wrapper" id="cardWrapper">
                 <div class="card-inner" id="cardInner">
+                    <!-- 카드 앞면 -->
                     <div class="card-face card-front">
                         <div class="edit-card-btn" onclick="openSingleEditModal(event)">✏️</div>
+                        <div class="delete-card-btn" onclick="deleteCurrentCard(event)">🗑️</div>
                         <div class="star-toggle" id="starFront" onclick="toggleStar(event)">☆</div>
                         <div class="word" id="jpWord">단어</div>
                         <div style="margin-top:15px; color:#CBD5E1; font-size:0.8rem;">Tap to flip</div>
                     </div>
+                    <!-- 카드 뒷면 -->
                     <div class="card-face card-back">
                         <div class="edit-card-btn" onclick="openSingleEditModal(event)">✏️</div>
+                        <div class="delete-card-btn" onclick="deleteCurrentCard(event)">🗑️</div>
                         <div class="star-toggle" id="starBack" onclick="toggleStar(event)">☆</div>
                         <div class="meaning" id="krMeaning">의미</div>
                     </div>
@@ -397,6 +428,23 @@
             </div>
             <div style="padding: 15px; background: white; border-top: 1px solid #eee;">
                 <button class="modal-action-btn success" style="margin-bottom:0;" onclick="saveEdits()">💾 변경사항 저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 쓰레기통 모달 -->
+    <div id="trash-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>🗑️ 이 단어장 쓰레기통</h3>
+                <button onclick="closeTrashModal()">✕</button>
+            </div>
+            <div class="modal-content" id="trash-list-container">
+                <!-- 삭제된 단어 리스트 렌더링 영역 -->
+            </div>
+            <div style="padding: 15px; background: white; border-top: 1px solid #eee; display: flex; gap: 10px;">
+                <button class="modal-action-btn danger" style="margin-bottom:0; flex:1;" onclick="emptyDeckTrash()">🗑️ 전체 영구 삭제</button>
+                <button class="modal-action-btn secondary" style="margin-bottom:0; flex:1;" onclick="closeTrashModal()">닫기</button>
             </div>
         </div>
     </div>
@@ -457,6 +505,7 @@
 
     <script>
         // --- 인쇄 시 글자 길이에 따른 폰트 사이즈 계산 ---
+        // 한 페이지당 31줄(62개 단어)로 조정
         function getFontSize(text, defaultSize) {
             if (!text) return defaultSize;
             let len = text.length;
@@ -483,7 +532,8 @@
                         words: parsedWords,
                         stars: JSON.parse(localStorage.getItem('jpStarsFlat') || '[]'),
                         memo: localStorage.getItem('jpMemoRich') || '',
-                        session: JSON.parse(localStorage.getItem('jpSession') || 'null')
+                        session: JSON.parse(localStorage.getItem('jpSession') || 'null'),
+                        trash: []
                     };
                     appData.push(deck);
                 }
@@ -531,9 +581,25 @@
             return allWords;
         }
 
+        // 체크박스에 의해 선택된 단어장들의 단어 목록 취득
+        function getGlobalSelectedWords() {
+            const checkedBoxes = document.querySelectorAll('input[name="selected-global-decks"]:checked');
+            const selectedIds = Array.from(checkedBoxes).map(cb => cb.value);
+            
+            let selectedWords = [];
+            appData.forEach(deck => {
+                if (selectedIds.includes(deck.id) && deck.words) {
+                    selectedWords = selectedWords.concat(deck.words);
+                }
+            });
+            return selectedWords;
+        }
+
         // 초기화
         setTimeout(() => document.getElementById('intro-screen').classList.add('hidden'), 1000);
-        window.onload = loadAppData;
+        window.onload = function() {
+            loadAppData();
+        };
 
         // --- 화면 이동 로직 ---
         function showPage(id) {
@@ -549,20 +615,61 @@
             }
         }
 
-        // 글로벌 학습 슬라이더 UI 갱신
+        // 글로벌 학습 슬라이더 UI 갱신 (선택된 단어장 기준)
         function updateGlobalSliderUI() {
             const slider = document.getElementById('global-count-slider');
             const display = document.getElementById('global-val-display');
-            const allWordsLength = getAllWords().length;
-            if (allWordsLength === 0) {
-                display.innerText = "단어 없음";
-                if(slider) slider.value = 0;
-            } else if (parseInt(slider.value) >= allWordsLength) {
-                slider.value = allWordsLength;
-                display.innerText = `전체 (${allWordsLength}개)`;
-            } else {
-                display.innerText = `${slider.value}개`;
+            const selectedWordsLength = getGlobalSelectedWords().length;
+            
+            if (slider) {
+                slider.max = selectedWordsLength > 0 ? selectedWordsLength : 1;
+                if (selectedWordsLength === 0) {
+                    display.innerText = "단어 없음";
+                    slider.value = 0;
+                } else if (parseInt(slider.value) >= selectedWordsLength || parseInt(slider.value) === 0) {
+                    slider.value = selectedWordsLength;
+                    display.innerText = `전체 (${selectedWordsLength}개)`;
+                } else {
+                    display.innerText = `${slider.value}개`;
+                }
             }
+        }
+
+        // 글로벌 통합 학습용 단어장 선택 체크박스 목록 렌더링
+        function renderGlobalDeckSelection() {
+            const container = document.getElementById('global-deck-checkboxes');
+            if (!container) return;
+
+            // 기존 상태 기억
+            const previouslyChecked = {};
+            container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                previouslyChecked[cb.value] = cb.checked;
+            });
+
+            container.innerHTML = '';
+            if (appData.length === 0) {
+                container.innerHTML = '<span style="font-size:0.85rem; color:#94a3b8; padding:5px 0;">단어장이 없습니다.</span>';
+                return;
+            }
+
+            appData.forEach(deck => {
+                const isChecked = previouslyChecked[deck.id] !== undefined ? previouslyChecked[deck.id] : true;
+                const label = document.createElement('label');
+                label.style.display = 'flex';
+                label.style.alignItems = 'center';
+                label.style.gap = '8px';
+                label.style.fontSize = '0.85rem';
+                label.style.color = '#475569';
+                label.style.cursor = 'pointer';
+                label.style.fontWeight = '700';
+                label.style.padding = '3px 0';
+
+                label.innerHTML = `
+                    <input type="checkbox" name="selected-global-decks" value="${deck.id}" ${isChecked ? 'checked' : ''} onchange="updateGlobalSliderUI()" style="accent-color:var(--primary); width:16px; height:16px;">
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%;">📚 ${deck.name} (${deck.words ? deck.words.length : 0}개)</span>
+                `;
+                container.appendChild(label);
+            });
         }
 
         // --- 메인 홈 화면 (단어장 관리) ---
@@ -571,12 +678,8 @@
             container.innerHTML = '';
 
             // 글로벌 학습 섹션 처리
-            const allWordsLength = getAllWords().length;
-            const globalSlider = document.getElementById('global-count-slider');
-            if (globalSlider) {
-                globalSlider.max = allWordsLength > 0 ? allWordsLength : 1;
-                updateGlobalSliderUI();
-            }
+            renderGlobalDeckSelection();
+            updateGlobalSliderUI();
 
             let globalSessionStr = localStorage.getItem('jpMasterGlobalSession');
             let globalSession = globalSessionStr ? JSON.parse(globalSessionStr) : null;
@@ -631,7 +734,8 @@
                     words: [],
                     stars: [],
                     memo: '',
-                    session: null
+                    session: null,
+                    trash: []
                 };
                 appData.unshift(newDeck); 
                 saveAppData();
@@ -650,10 +754,151 @@
         }
 
         function deleteDeck(index) {
-            if (confirm(`'${appData[index].name}' 단어장을 정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+            if (confirm(`'${appData[index].name}' 단어장을 정말 삭제하시겠습니까?\n이 단어장 데이터는 전부 영구 삭제됩니다.`)) {
                 appData.splice(index, 1);
                 saveAppData();
                 renderHomeUI();
+            }
+        }
+
+        // --- 단어 학습 화면 내 단어 삭제 기능 (개별 단어장 쓰레기통 이동) ---
+        function deleteCurrentCard(e) {
+            e.stopPropagation(); // 카드 플립 방지
+            if (activeQueue.length === 0) return;
+            
+            const card = activeQueue[0];
+            const wordToDisplay = isKrFirst ? card.kr : card.jp;
+            
+            const deck = isGlobalMode ? getDeckByCardId(card.id) : getDeck();
+            if (!deck) return;
+
+            if (!confirm(`'${wordToDisplay}' 단어를 단어장('${deck.name}')의 쓰레기통으로 버리시겠습니까?`)) {
+                return;
+            }
+
+            if (!deck.trash) deck.trash = [];
+            // 단어장 내 쓰레기통에 추가
+            deck.trash.push({
+                id: card.id,
+                jp: card.jp,
+                kr: card.kr,
+                deletedAt: Date.now()
+            });
+
+            // 해당 단어장의 본문 및 즐겨찾기 리스트에서 제거
+            deck.words = deck.words.filter(w => w.id !== card.id);
+            deck.stars = deck.stars.filter(id => id !== card.id);
+            saveAppData();
+
+            // 활성 큐에서 제거하고 전체 카운트 감소
+            activeQueue.shift();
+            totalCount = Math.max(0, totalCount - 1);
+
+            saveSessionState();
+            updateProgress();
+            
+            // 삭제 후 다음 카드로 넘어가는 모션 효과
+            animateCardChange('ok');
+        }
+
+        // --- 단어장 개별 쓰레기통 모달 처리 ---
+        function openDeckTrashModal() {
+            renderDeckTrashUI();
+            const modal = document.getElementById('trash-modal');
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('visible'), 10);
+        }
+
+        function closeTrashModal() {
+            const modal = document.getElementById('trash-modal');
+            modal.classList.remove('visible');
+            setTimeout(() => modal.style.display = 'none', 300);
+        }
+
+        function renderDeckTrashUI() {
+            const container = document.getElementById('trash-list-container');
+            container.innerHTML = '';
+            const deck = getDeck();
+            if (!deck) return;
+
+            const trash = deck.trash || [];
+
+            if (trash.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding: 40px 10px; color:#94a3b8;">쓰레기통이 비어 있습니다.</div>';
+                return;
+            }
+
+            trash.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = 'edit-row';
+                row.style.borderBottom = '1px solid #e2e8f0';
+                row.style.paddingBottom = '10px';
+                row.style.flexDirection = 'row';
+                row.style.alignItems = 'center';
+                row.style.gap = '10px';
+
+                row.innerHTML = `
+                    <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
+                        <span style="font-weight:bold; color:#1e293b; font-family:'Meiryo', sans-serif; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.jp}</span>
+                        <span style="font-size:0.85rem; color:#64748b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.kr}</span>
+                    </div>
+                    <button class="modal-action-btn success" style="margin-bottom:0; width:auto; padding:6px 12px; font-size:0.8rem; flex-shrink:0;" onclick="restoreDeckTrashItem(${index})">복구</button>
+                    <button class="modal-action-btn danger" style="margin-bottom:0; width:auto; padding:6px 12px; font-size:0.8rem; flex-shrink:0;" onclick="permanentlyDeleteDeckTrashItem(${index})">삭제</button>
+                `;
+                container.appendChild(row);
+            });
+            updateDeckTrashCountUI();
+        }
+
+        function restoreDeckTrashItem(index) {
+            const deck = getDeck();
+            if (!deck) return;
+            const trash = deck.trash || [];
+            const item = trash[index];
+
+            deck.words.push({
+                id: item.id,
+                jp: item.jp,
+                kr: item.kr
+            });
+
+            trash.splice(index, 1);
+            saveAppData();
+
+            renderDeckTrashUI();
+            updateLobbyUI();
+        }
+
+        function permanentlyDeleteDeckTrashItem(index) {
+            const deck = getDeck();
+            if (!deck) return;
+            const trash = deck.trash || [];
+            if (confirm("이 단어를 영구히 삭제하시겠습니까? 복구할 수 없습니다.")) {
+                trash.splice(index, 1);
+                saveAppData();
+                renderDeckTrashUI();
+                updateLobbyUI();
+            }
+        }
+
+        function emptyDeckTrash() {
+            const deck = getDeck();
+            if (!deck) return;
+            const trash = deck.trash || [];
+            if (trash.length === 0) return;
+            if (confirm("이 단어장 쓰레기통의 모든 단어를 영구히 삭제하시겠습니까? 복구할 수 없습니다.")) {
+                deck.trash = [];
+                saveAppData();
+                renderDeckTrashUI();
+                updateLobbyUI();
+            }
+        }
+
+        function updateDeckTrashCountUI() {
+            const deck = getDeck();
+            const countSpan = document.getElementById('deck-trash-count');
+            if (countSpan) {
+                countSpan.innerText = deck && deck.trash ? deck.trash.length : 0;
             }
         }
 
@@ -727,7 +972,8 @@
                 words: Array.isArray(data.words) ? data.words : [],
                 stars: Array.isArray(data.stars) ? data.stars : [],
                 memo: data.memo || '',
-                session: null
+                session: null,
+                trash: Array.isArray(data.trash) ? data.trash : []
             };
 
             const idMap = {};
@@ -800,8 +1046,9 @@
                 printHtml += `<tr><td colspan="4" style="text-align:center;">조건에 해당하는 단어가 없습니다.</td></tr>`; 
                 printHtml += `</tbody></table>`;
             } else {
-                const PAGE_SIZE = 56;
-                const ROWS_PER_PAGE = 28;
+                // 한 장 크기를 꽉 채우도록 한 페이지당 31줄(62개 단어)로 조정
+                const PAGE_SIZE = 62;
+                const ROWS_PER_PAGE = 31;
                 let pagesCount = Math.ceil(allWords.length / PAGE_SIZE);
                 
                 for (let p = 0; p < pagesCount; p++) {
@@ -832,7 +1079,7 @@
                         if (w2) { 
                             let jpSize = getFontSize(w2.jp, "13px");
                             let krSize = getFontSize(w2.kr, "12px");
-                            printHtml += `<td class="jp" style="font-size:${jpSize};"><span class="${w2.isStar?'highlight-star':''}">${w2.jp}${w2.isStar?' ⭐':''}</span></td><td class="kr" style="font-size:${krSize};">${w2.kr}</td>`; 
+                            printHtml += `<td class="jp" style="font-size:${jpSize};"><span class="${w1.isStar?'highlight-star':''}">${w1.jp}${w1.isStar?' ⭐':''}</span></td><td class="kr" style="font-size:${krSize};">${w1.kr}</td>`; 
                         } else { 
                             printHtml += `<td class="jp"></td><td class="kr"></td>`; 
                         }
@@ -890,6 +1137,7 @@
             } else {
                 btnContinue.style.display = 'none';
             }
+            updateDeckTrashCountUI();
         }
 
         function updateSliderUI() {
@@ -908,15 +1156,28 @@
         }
 
         function clearDeckData() {
-            if(confirm("이 단어장의 모든 내용(단어, 메모, 진행상태)이 지워집니다. 진행하시겠습니까?")) {
+            if(confirm("이 단어장의 모든 내용(단어, 메모, 진행상태)이 지워집니다. 진행하시겠습니까? (삭제된 단어들은 해당 단어장의 쓰레기통에서 복구 가능)")) {
                 const deck = getDeck();
+                // 쓰레기통 보관
+                if (deck.words && deck.words.length > 0) {
+                    if (!deck.trash) deck.trash = [];
+                    deck.words.forEach(w => {
+                        deck.trash.push({
+                            id: w.id,
+                            jp: w.jp,
+                            kr: w.kr,
+                            deletedAt: Date.now()
+                        });
+                    });
+                }
+
                 deck.words = [];
                 deck.stars = [];
                 deck.memo = "";
                 deck.session = null;
                 saveAppData();
                 updateLobbyUI();
-                alert("비워졌습니다.");
+                alert("단어장이 초기화되었으며 단어들은 쓰레기통으로 이동했습니다.");
             }
         }
 
@@ -939,6 +1200,7 @@
             }
         }
 
+        // 세션 초기화
         function clearSessionState() {
             if (isGlobalMode) {
                 localStorage.removeItem('jpMasterGlobalSession');
@@ -1017,18 +1279,18 @@
             initGame();
         }
 
-        // 글로벌(전체 단어장) 학습 모드 함수들
+        // 글로벌(선택한 단어장 목록) 학습 모드 함수들
         function startGlobalSequentialWords() {
-            let allWords = getAllWords();
-            if(allWords.length === 0) { alert("추가된 단어가 없습니다."); return; }
+            let selectedWords = getGlobalSelectedWords();
+            if(selectedWords.length === 0) { alert("선택된 단어가 없습니다. 단어장을 체크했는지 확인해 주세요."); return; }
             isGlobalMode = true;
             isFavMode = false;
             isKrFirst = document.querySelector('input[name="global-card-dir"]:checked').value === 'kr-jp';
             
             let count = parseInt(document.getElementById('global-count-slider').value);
-            if(count === 0) count = allWords.length;
+            if(count === 0 || count > selectedWords.length) count = selectedWords.length;
             
-            activeQueue = [...allWords].slice(0, count);
+            activeQueue = [...selectedWords].slice(0, count);
             totalCount = activeQueue.length;
             
             if(totalCount === 0) return;
@@ -1038,16 +1300,16 @@
         }
 
         function startGlobalRandomWords() {
-            let allWords = getAllWords();
-            if(allWords.length === 0) { alert("추가된 단어가 없습니다."); return; }
+            let selectedWords = getGlobalSelectedWords();
+            if(selectedWords.length === 0) { alert("선택된 단어가 없습니다. 단어장을 체크했는지 확인해 주세요."); return; }
             isGlobalMode = true;
             isFavMode = false;
             isKrFirst = document.querySelector('input[name="global-card-dir"]:checked').value === 'kr-jp';
             
             let count = parseInt(document.getElementById('global-count-slider').value);
-            if(count === 0) count = allWords.length;
+            if(count === 0 || count > selectedWords.length) count = selectedWords.length;
             
-            let shuffled = [...allWords].sort(() => Math.random() - 0.5);
+            let shuffled = [...selectedWords].sort(() => Math.random() - 0.5);
             activeQueue = shuffled.slice(0, count);
             totalCount = activeQueue.length;
             
@@ -1058,16 +1320,19 @@
         }
 
         function startGlobalFavorites() {
+            const checkedBoxes = document.querySelectorAll('input[name="selected-global-decks"]:checked');
+            const selectedIds = Array.from(checkedBoxes).map(cb => cb.value);
+
             let allFavWords = [];
             appData.forEach(deck => {
-                if (deck.words && deck.stars) {
+                if (selectedIds.includes(deck.id) && deck.words && deck.stars) {
                     let favs = deck.words.filter(w => deck.stars.includes(w.id));
                     allFavWords = allFavWords.concat(favs);
                 }
             });
 
             if (allFavWords.length === 0) { 
-                alert("즐겨찾기한 단어가 없습니다."); 
+                alert("선택한 단어장 중 즐겨찾기한 단어가 없습니다."); 
                 return; 
             }
             
@@ -1075,7 +1340,6 @@
             isFavMode = true;
             isKrFirst = document.querySelector('input[name="global-card-dir"]:checked').value === 'kr-jp';
             
-            // 모든 즐겨찾기를 랜덤으로 섞음
             allFavWords.sort(() => Math.random() - 0.5);
             activeQueue = allFavWords;
             totalCount = activeQueue.length;
@@ -1204,6 +1468,23 @@
                     newData.push({ jp: jpInput.value.trim(), kr: krInput.value.trim(), id: id });
                 }
             });
+
+            // 편집 과정에서 사라진 단어들을 감지하여 해당 단어장의 쓰레기통으로 이동
+            const prevWords = deck.words;
+            const newIds = newData.map(w => w.id);
+            const deletedWords = prevWords.filter(pw => !newIds.includes(pw.id));
+
+            if (deletedWords.length > 0) {
+                if (!deck.trash) deck.trash = [];
+                deletedWords.forEach(w => {
+                    deck.trash.push({
+                        id: w.id,
+                        jp: w.jp,
+                        kr: w.kr,
+                        deletedAt: Date.now()
+                    });
+                });
+            }
             
             deck.words = newData;
             const validIds = deck.words.map(w => w.id);
@@ -1212,6 +1493,7 @@
             clearSessionState(); 
             alert("변경사항이 성공적으로 저장되었습니다!");
             closeEditModal();
+            renderHomeUI();
         }
 
         function openAddWordModal() {
@@ -1338,8 +1620,9 @@
                 printHtml += `</tbody></table>`;
             } 
             else {
-                const PAGE_SIZE = 56;
-                const ROWS_PER_PAGE = 28;
+                // 한 페이지 크기를 꽉 채우도록 31줄(62개 단어)로 조정
+                const PAGE_SIZE = 62;
+                const ROWS_PER_PAGE = 31;
                 let pagesCount = Math.ceil(targetData.length / PAGE_SIZE);
                 
                 for (let p = 0; p < pagesCount; p++) {
@@ -1521,7 +1804,7 @@
         document.getElementById('touchArea').addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
 
         cw.addEventListener('touchstart', e => {
-            if(e.target.closest('.star-toggle') || e.target.closest('.nav-btn') || e.target.closest('.edit-card-btn')) return;
+            if(e.target.closest('.star-toggle') || e.target.closest('.nav-btn') || e.target.closest('.edit-card-btn') || e.target.closest('.delete-card-btn')) return;
             isDragging = true; startX = e.touches[0].clientX; currentX = startX; cw.style.transition = 'none';
         }, { passive: false });
 
